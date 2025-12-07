@@ -8,6 +8,7 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
+import SMSWalletScreen from './src/screens/SMSWalletScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import SidebarModal from './src/components/SidebarModal';
 
@@ -35,8 +36,8 @@ function App(): React.JSX.Element {
 
   // User info - this can be fetched from API after login
   const [userInfo] = useState({
-    userName: 'John Doe',
-    companyName: 'Dashboard User',
+    userName: 'Customer',
+    companyName: 'SMS Expert Ltd',
   });
 
   const navigate = (screen: string) => {
@@ -62,6 +63,7 @@ function App(): React.JSX.Element {
   const navigation = {
     navigate,
     openDrawer: openSidebar,
+    goBack: () => navigate('Dashboard'),
     reset: ({routes}: {index: number; routes: {name: string}[]}) => {
       setCurrentScreen(routes[0].name as ScreenName);
     },
@@ -73,6 +75,8 @@ function App(): React.JSX.Element {
         return <LoginScreen navigation={navigation} />;
       case 'Dashboard':
         return <DashboardScreen navigation={navigation} />;
+      case 'SMSWallet':
+        return <SMSWalletScreen navigation={navigation} />;
       default:
         return (
           <PlaceholderScreen
