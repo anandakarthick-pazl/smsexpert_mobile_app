@@ -77,24 +77,7 @@ const SMSWalletScreen: React.FC<SMSWalletScreenProps> = ({navigation}) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
 
-        {/* Breadcrumb */}
-        <View style={styles.breadcrumbContainer}>
-          <View style={styles.breadcrumbLeft}>
-            <Text style={styles.breadcrumbTitle}>SMS Wallet</Text>
-            <View style={styles.breadcrumbNav}>
-              <TouchableOpacity onPress={() => navigation.navigate('Dashboard')}>
-                <Text style={styles.breadcrumbLink}>Dashboard</Text>
-              </TouchableOpacity>
-              <Text style={styles.breadcrumbSeparator}>/</Text>
-              <Text style={styles.breadcrumbActive}>SMS Wallet</Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.navigate('Dashboard')}>
-            <Text style={styles.backButtonText}>← Back</Text>
-          </TouchableOpacity>
-        </View>
+
 
         {/* Wallet Balance Card */}
         <View style={styles.walletCard}>
@@ -339,58 +322,8 @@ const styles = StyleSheet.create({
     padding: 10,
     paddingBottom: 20,
   },
-  // Breadcrumb
-  breadcrumbContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 8,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  breadcrumbLeft: {
-    flex: 1,
-  },
-  breadcrumbTitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#293B50',
-    marginBottom: 1,
-  },
-  breadcrumbNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  breadcrumbLink: {
-    fontSize: 8,
-    color: '#ea6118',
-    fontWeight: '500',
-  },
-  breadcrumbSeparator: {
-    fontSize: 8,
-    color: '#94a3b8',
-    marginHorizontal: 3,
-  },
-  breadcrumbActive: {
-    fontSize: 8,
-    color: '#64748b',
-  },
-  backButton: {
-    backgroundColor: '#f1f5f9',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  backButtonText: {
-    fontSize: 8,
-    color: '#64748b',
-    fontWeight: '600',
-  },
+
+
   // Wallet Card
   walletCard: {
     backgroundColor: '#ffffff',

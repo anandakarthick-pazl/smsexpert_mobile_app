@@ -9,6 +9,7 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import SMSWalletScreen from './src/screens/SMSWalletScreen';
+import SendNewSMSScreen from './src/screens/SendNewSMSScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import SidebarModal from './src/components/SidebarModal';
 
@@ -77,6 +78,8 @@ function App(): React.JSX.Element {
         return <DashboardScreen navigation={navigation} />;
       case 'SMSWallet':
         return <SMSWalletScreen navigation={navigation} />;
+      case 'SendSMS':
+        return <SendNewSMSScreen navigation={navigation} />;
       default:
         return (
           <PlaceholderScreen
