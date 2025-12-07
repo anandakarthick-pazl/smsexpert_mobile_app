@@ -157,8 +157,6 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
 
-
-
         {/* Main Card */}
         <View style={styles.mainCard}>
           {/* Option 1: Quick Send SMS */}
@@ -225,7 +223,7 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                         <Text style={styles.helpIcon}>❓</Text>
                       </View>
                       <TouchableOpacity
-                        style={[styles.radioOption, senderIdType === 'default' && styles.radioOptionActive, {marginBottom: 6}]}
+                        style={[styles.radioOption, senderIdType === 'default' && styles.radioOptionActive, {marginBottom: 10}]}
                         onPress={() => setSenderIdType('default')}>
                         <View style={[styles.radioCircle, senderIdType === 'default' && styles.radioCircleActive]}>
                           {senderIdType === 'default' && <View style={styles.radioInner} />}
@@ -242,7 +240,7 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                       </TouchableOpacity>
                       {senderIdType === 'custom' && (
                         <TextInput
-                          style={[styles.textInput, {marginTop: 6}]}
+                          style={[styles.textInput, {marginTop: 10}]}
                           value={customSenderId}
                           onChangeText={setCustomSenderId}
                           placeholder="Enter sender ID"
@@ -504,15 +502,13 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
   },
   scrollContent: {
-    padding: 10,
-    paddingBottom: 20,
+    padding: 16,
+    paddingBottom: 30,
   },
-
-
   // Main Card
   mainCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e2e8f0',
     overflow: 'hidden',
@@ -526,7 +522,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 10,
+    padding: 16,
     backgroundColor: '#ffffff',
   },
   accordionHeaderActive: {
@@ -538,11 +534,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   accordionIcon: {
-    fontSize: 12,
-    marginRight: 6,
+    fontSize: 20,
+    marginRight: 10,
   },
   accordionTitle: {
-    fontSize: 9,
+    fontSize: 15,
     fontWeight: '600',
     color: '#293B50',
     flex: 1,
@@ -551,95 +547,95 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   accordionArrow: {
-    fontSize: 8,
+    fontSize: 14,
     color: '#64748b',
   },
   accordionArrowActive: {
     color: '#ffffff',
   },
   accordionBody: {
-    padding: 10,
+    padding: 16,
     backgroundColor: '#f8fafc',
   },
   // Wallet Card
   walletCard: {
     backgroundColor: '#293B50',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 20,
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
   },
   walletAmount: {
-    fontSize: 18,
+    fontSize: 32,
     fontWeight: '700',
     color: '#ffffff',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   walletLabel: {
-    fontSize: 8,
+    fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
   },
   // Section Card
   sectionCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
-    marginBottom: 10,
+    borderRadius: 12,
+    marginBottom: 16,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
   sectionHeader: {
     backgroundColor: '#f8fafc',
-    padding: 8,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
   },
   sectionIcon: {
-    fontSize: 10,
-    marginRight: 6,
+    fontSize: 18,
+    marginRight: 10,
   },
   sectionTitle: {
-    fontSize: 10,
+    fontSize: 16,
     fontWeight: '700',
     color: '#293B50',
   },
   sectionContent: {
-    padding: 10,
+    padding: 16,
   },
   // Form Group
   formGroup: {
-    marginBottom: 12,
+    marginBottom: 20,
   },
   formLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 10,
   },
   formLabelIcon: {
-    fontSize: 10,
-    marginRight: 4,
+    fontSize: 18,
+    marginRight: 8,
   },
   formLabel: {
-    fontSize: 9,
+    fontSize: 15,
     fontWeight: '600',
     color: '#293B50',
   },
   helpIcon: {
-    fontSize: 10,
-    marginLeft: 4,
+    fontSize: 16,
+    marginLeft: 8,
     color: '#64748b',
   },
   // Radio Group
   radioOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
     backgroundColor: '#f8fafc',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
   },
   radioOptionActive: {
@@ -647,12 +643,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff7ed',
   },
   radioCircle: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 1.5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
     borderColor: '#cbd5e1',
-    marginRight: 5,
+    marginRight: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -660,47 +656,47 @@ const styles = StyleSheet.create({
     borderColor: '#ea6118',
   },
   radioInner: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#ea6118',
   },
   radioLabel: {
-    fontSize: 8,
+    fontSize: 14,
     color: '#475569',
     fontWeight: '500',
   },
   messageTypeBox: {
     backgroundColor: '#f8fafc',
-    borderRadius: 6,
-    padding: 6,
+    borderRadius: 10,
+    padding: 8,
   },
   // Input
   textInput: {
     backgroundColor: '#ffffff',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#e2e8f0',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    fontSize: 9,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
     color: '#293B50',
   },
   textArea: {
-    minHeight: 60,
+    minHeight: 100,
     textAlignVertical: 'top',
   },
   charCounter: {
-    fontSize: 8,
+    fontSize: 13,
     color: '#64748b',
     fontWeight: '600',
-    marginTop: 4,
+    marginTop: 8,
   },
   // Action Buttons
   actionRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 20,
   },
   calculateButton: {
     flex: 1,
@@ -708,15 +704,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingVertical: 14,
+    borderRadius: 10,
   },
   calculateButtonIcon: {
-    fontSize: 9,
-    marginRight: 4,
+    fontSize: 16,
+    marginRight: 8,
   },
   calculateButtonText: {
-    fontSize: 8,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
   },
@@ -726,77 +722,77 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingVertical: 14,
+    borderRadius: 10,
   },
   sendButtonIcon: {
-    fontSize: 9,
-    marginRight: 4,
+    fontSize: 16,
+    marginRight: 8,
   },
   sendButtonText: {
-    fontSize: 8,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
   },
   // Schedule Section
   scheduleSection: {
     backgroundColor: '#f8fafc',
-    borderRadius: 6,
-    padding: 8,
-    borderWidth: 1.5,
+    borderRadius: 10,
+    padding: 14,
+    borderWidth: 2,
     borderColor: '#e2e8f0',
     borderStyle: 'dashed',
   },
   scheduleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 10,
     flexWrap: 'wrap',
-    marginTop: 6,
+    marginTop: 10,
   },
   scheduleButton: {
     backgroundColor: '#ea6118',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
   scheduleButtonIcon: {
-    fontSize: 9,
-    marginRight: 3,
+    fontSize: 14,
+    marginRight: 6,
   },
   scheduleButtonText: {
-    fontSize: 8,
+    fontSize: 13,
     fontWeight: '600',
     color: '#ffffff',
   },
   dateInput: {
     backgroundColor: '#ffffff',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   dateText: {
-    fontSize: 8,
+    fontSize: 13,
     color: '#293B50',
   },
   timeDropdown: {
     backgroundColor: '#ffffff',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e2e8f0',
-    borderRadius: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
   },
   timeText: {
-    fontSize: 8,
+    fontSize: 13,
     color: '#293B50',
-    marginRight: 4,
+    marginRight: 6,
   },
   // Dropdown
   dropdown: {
@@ -804,39 +800,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#ffffff',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#e2e8f0',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   dropdownText: {
-    fontSize: 9,
+    fontSize: 15,
     color: '#293B50',
   },
   dropdownArrow: {
-    fontSize: 7,
+    fontSize: 12,
     color: '#64748b',
   },
   dropdownIcon: {
-    fontSize: 6,
+    fontSize: 10,
     color: '#64748b',
   },
   dropdownList: {
     backgroundColor: '#ffffff',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#e2e8f0',
-    borderRadius: 6,
-    marginTop: 3,
-    maxHeight: 100,
+    borderRadius: 10,
+    marginTop: 8,
+    maxHeight: 180,
     overflow: 'hidden',
   },
   dropdownScroll: {
-    maxHeight: 100,
+    maxHeight: 180,
   },
   dropdownItem: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
@@ -844,7 +840,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff7ed',
   },
   dropdownItemText: {
-    fontSize: 8,
+    fontSize: 14,
     color: '#293B50',
   },
   dropdownItemTextActive: {
@@ -854,15 +850,15 @@ const styles = StyleSheet.create({
   // Contact List
   contactList: {
     backgroundColor: '#ffffff',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#e2e8f0',
-    borderRadius: 6,
-    minHeight: 80,
+    borderRadius: 10,
+    minHeight: 120,
     justifyContent: 'center',
     alignItems: 'center',
   },
   noContactsText: {
-    fontSize: 8,
+    fontSize: 14,
     color: '#94a3b8',
   },
   addContactsButton: {
@@ -870,104 +866,104 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingVertical: 14,
+    borderRadius: 10,
   },
   addContactsIcon: {
-    fontSize: 9,
-    marginRight: 4,
+    fontSize: 16,
+    marginRight: 8,
   },
   addContactsText: {
-    fontSize: 8,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
   },
   // Campaign Section
   campaignSection: {
     backgroundColor: '#fff7ed',
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: 12,
+    padding: 24,
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#ea6118',
   },
   campaignIcon: {
-    fontSize: 24,
-    marginBottom: 6,
+    fontSize: 40,
+    marginBottom: 12,
   },
   campaignTitle: {
-    fontSize: 11,
+    fontSize: 18,
     fontWeight: '700',
     color: '#293B50',
-    marginBottom: 6,
+    marginBottom: 10,
   },
   campaignText: {
-    fontSize: 8,
+    fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
-    lineHeight: 12,
-    marginBottom: 10,
+    lineHeight: 20,
+    marginBottom: 16,
   },
   launchButton: {
     backgroundColor: '#ea6118',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginBottom: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginBottom: 16,
   },
   launchButtonIcon: {
-    fontSize: 10,
-    marginRight: 4,
+    fontSize: 18,
+    marginRight: 8,
   },
   launchButtonText: {
-    fontSize: 9,
+    fontSize: 15,
     fontWeight: '600',
     color: '#ffffff',
   },
   campaignNote: {
-    fontSize: 7,
+    fontSize: 12,
     color: '#64748b',
     textAlign: 'center',
-    lineHeight: 10,
+    lineHeight: 18,
   },
   // Upload Section
   uploadSection: {
     backgroundColor: '#f8fafc',
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: 12,
+    padding: 24,
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#e2e8f0',
     borderStyle: 'dashed',
   },
   uploadIcon: {
-    fontSize: 24,
-    marginBottom: 6,
+    fontSize: 40,
+    marginBottom: 12,
     color: '#ea6118',
   },
   uploadTitle: {
-    fontSize: 10,
+    fontSize: 16,
     fontWeight: '600',
     color: '#293B50',
-    marginBottom: 10,
+    marginBottom: 16,
   },
   uploadButton: {
     backgroundColor: '#ea6118',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginBottom: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginBottom: 16,
   },
   uploadButtonIcon: {
-    fontSize: 9,
-    marginRight: 4,
+    fontSize: 16,
+    marginRight: 8,
   },
   uploadButtonText: {
-    fontSize: 8,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
   },
@@ -975,15 +971,16 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   requirementsTitle: {
-    fontSize: 9,
+    fontSize: 14,
     fontWeight: '600',
     color: '#293B50',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   requirementItem: {
-    fontSize: 7,
+    fontSize: 13,
     color: '#64748b',
-    marginBottom: 2,
+    marginBottom: 4,
+    lineHeight: 20,
   },
 });
 
