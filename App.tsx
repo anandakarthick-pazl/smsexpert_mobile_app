@@ -38,7 +38,7 @@ function App(): React.JSX.Element {
   // User info - this can be fetched from API after login
   const [userInfo] = useState({
     userName: 'Customer',
-    companyName: 'SMS Expert Ltd',
+    companyName: 'Dashboard User',
   });
 
   const navigate = (screen: string) => {
