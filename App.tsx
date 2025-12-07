@@ -1,45 +1,105 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
+ * SMS Expert Mobile App
  */
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import React, {useState} from 'react';
+import {StatusBar} from 'react-native';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+import LoginScreen from './src/screens/LoginScreen';
+import DashboardScreen from './src/screens/DashboardScreen';
+import PlaceholderScreen from './src/screens/PlaceholderScreen';
+import SidebarModal from './src/components/SidebarModal';
+
+type ScreenName = 
+  | 'Login' 
+  | 'Dashboard' 
+  | 'SMSWallet' 
+  | 'SendSMS' 
+  | 'ReceivedSMS'
+  | 'SentSMS' 
+  | 'Keywords' 
+  | 'Numbers' 
+  | 'Groups' 
+  | 'Profile' 
+  | 'Contracts'
+  | 'Invoices' 
+  | 'TechDocs' 
+  | 'DeliveryReceipt' 
+  | 'Stops' 
+  | 'Blacklist';
+
+function App(): React.JSX.Element {
+  const [currentScreen, setCurrentScreen] = useState<ScreenName>('Login');
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+
+  // User info - this can be fetched from API after login
+  const [userInfo] = useState({
+    userName: 'John Doe',
+    companyName: 'Dashboard User',
+  });
+
+  const navigate = (screen: string) => {
+    setCurrentScreen(screen as ScreenName);
+    setSidebarVisible(false);
+  };
+
+  const openSidebar = () => {
+    console.log('Opening sidebar');
+    setSidebarVisible(true);
+  };
+
+  const closeSidebar = () => {
+    console.log('Closing sidebar');
+    setSidebarVisible(false);
+  };
+
+  const logout = () => {
+    setCurrentScreen('Login');
+    setSidebarVisible(false);
+  };
+
+  const navigation = {
+    navigate,
+    openDrawer: openSidebar,
+    reset: ({routes}: {index: number; routes: {name: string}[]}) => {
+      setCurrentScreen(routes[0].name as ScreenName);
+    },
+  };
+
+  const renderScreen = () => {
+    switch (currentScreen) {
+      case 'Login':
+        return <LoginScreen navigation={navigation} />;
+      case 'Dashboard':
+        return <DashboardScreen navigation={navigation} />;
+      default:
+        return (
+          <PlaceholderScreen
+            navigation={navigation}
+            route={{name: currentScreen}}
+          />
+        );
+    }
+  };
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      {renderScreen()}
+      {currentScreen !== 'Login' && (
+        <SidebarModal
+          visible={sidebarVisible}
+          onClose={closeSidebar}
+          onNavigate={navigate}
+          onLogout={logout}
+          currentRoute={currentScreen}
+          userName={userInfo.userName}
+          companyName={userInfo.companyName}
+        />
+      )}
     </SafeAreaProvider>
   );
 }
-
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
 
 export default App;
