@@ -12,7 +12,6 @@ interface HeaderProps {
   onNotificationPress?: () => void;
   onFilterPress?: () => void;
   notificationCount?: number;
-  showWallet?: boolean;
   walletBalance?: string;
   showFilter?: boolean;
 }
@@ -23,7 +22,6 @@ const Header: React.FC<HeaderProps> = ({
   onNotificationPress,
   onFilterPress,
   notificationCount = 0,
-  showWallet = false,
   walletBalance = '£0',
   showFilter = false,
 }) => {
@@ -44,24 +42,23 @@ const Header: React.FC<HeaderProps> = ({
 
       {/* Right Side - Wallet, Filter & Notification */}
       <View style={styles.rightSection}>
-        {showWallet && (
-          <View style={styles.walletBadge}>
-            <Text style={styles.walletIcon}>💳</Text>
-            <Text style={styles.walletText}>{walletBalance}</Text>
-          </View>
-        )}
-        
-        {/* Filter Icon */}
+        {/* Wallet Balance - Always visible */}
+        <View style={styles.walletBadge}>
+          <Text style={styles.walletIcon}>💳</Text>
+          <Text style={styles.walletText}>{walletBalance}</Text>
+        </View>
+
+        {/* Filter Icon - Only on Dashboard */}
         {showFilter && (
           <TouchableOpacity
             style={styles.iconButton}
             onPress={onFilterPress}
             activeOpacity={0.7}>
-            <Text style={styles.filterIcon}>⚙️</Text>
+            <Text style={styles.filterIcon}>📅</Text>
           </TouchableOpacity>
         )}
         
-        {/* Notification Bell */}
+        {/* Notification Bell - Always visible */}
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onNotificationPress}

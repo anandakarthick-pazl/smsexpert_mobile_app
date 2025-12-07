@@ -50,12 +50,13 @@ const PlaceholderScreen: React.FC<PlaceholderScreenProps> = ({navigation, route}
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#293B50" />
 
-      {/* Header with Notification Bell */}
+      {/* Header with Wallet & Notification (Common for all pages) */}
       <Header
         title={info.title}
         onMenuPress={() => navigation.openDrawer()}
         onNotificationPress={handleNotificationPress}
         notificationCount={3}
+        walletBalance="£6859"
       />
 
       {/* Content */}
