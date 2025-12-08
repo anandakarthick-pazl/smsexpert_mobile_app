@@ -4,4 +4,5 @@ export {default as SMSWalletScreen} from './SMSWalletScreen';
 export {default as SendNewSMSScreen} from './SendNewSMSScreen';
 export {default as ReceivedSMSScreen} from './ReceivedSMSScreen';
 export {default as SentSMSScreen} from './SentSMSScreen';
+export {default as KeywordsScreen} from './KeywordsScreen';
 export {default as PlaceholderScreen} from './PlaceholderScreen';

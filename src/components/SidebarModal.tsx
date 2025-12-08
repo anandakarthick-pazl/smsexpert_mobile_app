@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 const {width} = Dimensions.get('window');
-const SIDEBAR_WIDTH = 280;
+const SIDEBAR_WIDTH = 250;
 
 interface MenuItem {
   name: string;
@@ -96,7 +96,6 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
 
   const handleSwitchToCampaignManager = () => {
     console.log('Switch to Campaign Manager');
-    // Add your navigation logic here
     onClose();
   };
 
@@ -239,7 +238,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 50,
-    paddingBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -258,15 +257,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeIcon: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#ffffff',
     fontWeight: '600',
   },
@@ -274,21 +273,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   userAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#ea6118',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   userAvatarText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#ffffff',
   },
@@ -296,33 +295,33 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   companyName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
     marginBottom: 2,
   },
   userName: {
-    fontSize: 14,
+    fontSize: 12,
     color: 'rgba(255, 255, 255, 0.7)',
   },
   switchButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 12,
-    marginVertical: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    marginHorizontal: 10,
+    marginVertical: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     backgroundColor: 'rgba(234, 97, 24, 0.15)',
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(234, 97, 24, 0.3)',
   },
   switchIcon: {
-    fontSize: 16,
-    marginRight: 10,
+    fontSize: 14,
+    marginRight: 8,
   },
   switchText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#ea6118',
   },
@@ -330,37 +329,37 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuContent: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    marginVertical: 2,
-    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginVertical: 1,
+    borderRadius: 8,
   },
   menuItemActive: {
     backgroundColor: '#ea6118',
   },
   menuIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 6,
     backgroundColor: 'rgba(234, 97, 24, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   menuIconContainerActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
   menuItemIcon: {
-    fontSize: 18,
+    fontSize: 14,
   },
   menuItemText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '500',
     color: 'rgba(255, 255, 255, 0.9)',
   },
@@ -369,8 +368,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   footer: {
-    padding: 16,
-    paddingBottom: 30,
+    padding: 12,
+    paddingBottom: 24,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
@@ -378,18 +377,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 10,
     backgroundColor: 'rgba(220, 53, 69, 0.15)',
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(220, 53, 69, 0.3)',
   },
   logoutIcon: {
-    fontSize: 18,
-    marginRight: 10,
+    fontSize: 15,
+    marginRight: 8,
   },
   logoutText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
     color: '#dc3545',
   },
