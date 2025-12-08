@@ -1,4 +1,4 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,8 @@ interface MenuItem {
   route: string;
 }
 
-const menuItems: MenuItem[] = [
+// Dashboard Menu Items
+const dashboardMenuItems: MenuItem[] = [
   {name: 'Dashboard', icon: '🏠', route: 'Dashboard'},
   {name: 'SMS Wallet', icon: '💰', route: 'SMSWallet'},
   {name: 'Send New SMS', icon: '📤', route: 'SendSMS'},
@@ -32,10 +33,20 @@ const menuItems: MenuItem[] = [
   {name: 'Client Profile', icon: '👤', route: 'Profile'},
   {name: 'Contracts', icon: '📄', route: 'Contracts'},
   {name: 'Invoices', icon: '🧾', route: 'Invoices'},
-  // {name: 'Technical Docs', icon: '💡', route: 'TechDocs'}, // Hidden
   {name: 'Delivery Receipt', icon: '📖', route: 'DeliveryReceipt'},
   {name: 'STOPs/Optouts', icon: '🛟', route: 'Stops'},
   {name: 'Blacklist', icon: '🚫', route: 'Blacklist'},
+];
+
+// Campaign Manager Menu Items
+const campaignMenuItems: MenuItem[] = [
+  {name: 'Campaign Dashboard', icon: '🏠', route: 'CampaignHome'},
+  {name: 'Quick Campaign', icon: '📤', route: 'CampaignQuick'},
+  {name: 'Bulk Campaign', icon: '📁', route: 'CampaignFile'},
+  {name: 'Campaigns History', icon: '📋', route: 'CampaignHistory'},
+  {name: 'STOP Blacklist', icon: '🚫', route: 'CampaignBlacklist'},
+  {name: 'View Accounts', icon: '👥', route: 'CampaignAccounts'},
+  {name: 'New Sub-Account', icon: '➕', route: 'CampaignAddAccount'},
 ];
 
 interface SidebarModalProps {
@@ -59,6 +70,13 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
 }) => {
   const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [isCampaignMode, setIsCampaignMode] = useState(false);
+
+  // Get current menu items based on mode
+  const menuItems = isCampaignMode ? campaignMenuItems : dashboardMenuItems;
+  
+  // Get user type based on mode
+  const userType = isCampaignMode ? 'Campaign User' : 'Dashboard User';
 
   useEffect(() => {
     if (visible) {
@@ -94,9 +112,8 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
     onNavigate(route);
   };
 
-  const handleSwitchToCampaignManager = () => {
-    console.log('Switch to Campaign Manager');
-    onClose();
+  const handleSwitchMode = () => {
+    setIsCampaignMode(!isCampaignMode);
   };
 
   if (!visible) {
@@ -138,24 +155,26 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
 
           {/* User Info Section */}
           <View style={styles.userSection}>
-            <View style={styles.userAvatar}>
+            <View style={[styles.userAvatar, isCampaignMode && styles.userAvatarCampaign]}>
               <Text style={styles.userAvatarText}>
                 {userName.charAt(0).toUpperCase()}
               </Text>
             </View>
             <View style={styles.userInfo}>
-              <Text style={styles.companyName}>{companyName}</Text>
-              <Text style={styles.userName}>{userName}</Text>
+              <Text style={styles.companyName}>{userName}</Text>
+              <Text style={styles.userName}>{userType}</Text>
             </View>
           </View>
 
-          {/* Switch to Campaign Manager */}
+          {/* Switch Mode Button */}
           <TouchableOpacity
-            style={styles.switchButton}
-            onPress={handleSwitchToCampaignManager}
+            style={[styles.switchButton, isCampaignMode && styles.switchButtonCampaign]}
+            onPress={handleSwitchMode}
             activeOpacity={0.7}>
             <Text style={styles.switchIcon}>🔄</Text>
-            <Text style={styles.switchText}>Switch to Campaign Manager</Text>
+            <Text style={[styles.switchText, isCampaignMode && styles.switchTextCampaign]}>
+              {isCampaignMode ? 'Switch to Dashboard' : 'Switch to Campaign Manager'}
+            </Text>
           </TouchableOpacity>
 
           {/* Menu Items */}
@@ -170,13 +189,14 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
                   key={index}
                   style={[
                     styles.menuItem,
-                    isActive && styles.menuItemActive,
+                    isActive && (isCampaignMode ? styles.menuItemActiveCampaign : styles.menuItemActive),
                   ]}
                   onPress={() => handleNavigate(item.route)}
                   activeOpacity={0.7}>
                   <View
                     style={[
                       styles.menuIconContainer,
+                      isCampaignMode && styles.menuIconContainerCampaign,
                       isActive && styles.menuIconContainerActive,
                     ]}>
                     <Text style={styles.menuItemIcon}>{item.icon}</Text>
@@ -286,6 +306,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 10,
   },
+  userAvatarCampaign: {
+    backgroundColor: '#0891b2',
+  },
   userAvatarText: {
     fontSize: 18,
     fontWeight: '700',
@@ -316,6 +339,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(234, 97, 24, 0.3)',
   },
+  switchButtonCampaign: {
+    backgroundColor: 'rgba(8, 145, 178, 0.15)',
+    borderColor: 'rgba(8, 145, 178, 0.3)',
+  },
   switchIcon: {
     fontSize: 14,
     marginRight: 8,
@@ -324,6 +351,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#ea6118',
+  },
+  switchTextCampaign: {
+    color: '#0891b2',
   },
   menuContainer: {
     flex: 1,
@@ -343,6 +373,9 @@ const styles = StyleSheet.create({
   menuItemActive: {
     backgroundColor: '#ea6118',
   },
+  menuItemActiveCampaign: {
+    backgroundColor: '#0891b2',
+  },
   menuIconContainer: {
     width: 28,
     height: 28,
@@ -351,6 +384,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
+  },
+  menuIconContainerCampaign: {
+    backgroundColor: 'rgba(8, 145, 178, 0.2)',
   },
   menuIconContainerActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -362,6 +398,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: 'rgba(255, 255, 255, 0.9)',
+    flex: 1,
   },
   menuItemTextActive: {
     color: '#ffffff',

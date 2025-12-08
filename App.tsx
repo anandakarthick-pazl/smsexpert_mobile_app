@@ -20,6 +20,10 @@ import ContractsScreen from './src/screens/ContractsScreen';
 import InvoicesScreen from './src/screens/InvoicesScreen';
 import DeliveryReceiptScreen from './src/screens/DeliveryReceiptScreen';
 import BlacklistScreen from './src/screens/BlacklistScreen';
+import CampaignDashboardScreen from './src/screens/CampaignDashboardScreen';
+import QuickCampaignScreen from './src/screens/QuickCampaignScreen';
+import BulkCampaignScreen from './src/screens/BulkCampaignScreen';
+import CampaignHistoryScreen from './src/screens/CampaignHistoryScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import SidebarModal from './src/components/SidebarModal';
 
@@ -39,7 +43,14 @@ type ScreenName =
   | 'TechDocs' 
   | 'DeliveryReceipt' 
   | 'Stops' 
-  | 'Blacklist';
+  | 'Blacklist'
+  | 'CampaignHome'
+  | 'CampaignQuick'
+  | 'CampaignFile'
+  | 'CampaignHistory'
+  | 'CampaignBlacklist'
+  | 'CampaignAccounts'
+  | 'CampaignAddAccount';
 
 function App(): React.JSX.Element {
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Login');
@@ -110,6 +121,14 @@ function App(): React.JSX.Element {
         return <DeliveryReceiptScreen navigation={navigation} />;
       case 'Blacklist':
         return <BlacklistScreen navigation={navigation} />;
+      case 'CampaignHome':
+        return <CampaignDashboardScreen navigation={navigation} />;
+      case 'CampaignQuick':
+        return <QuickCampaignScreen navigation={navigation} />;
+      case 'CampaignFile':
+        return <BulkCampaignScreen navigation={navigation} />;
+      case 'CampaignHistory':
+        return <CampaignHistoryScreen navigation={navigation} />;
       default:
         return (
           <PlaceholderScreen

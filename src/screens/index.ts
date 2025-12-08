@@ -12,4 +12,7 @@ export {default as ContractsScreen} from './ContractsScreen';
 export {default as InvoicesScreen} from './InvoicesScreen';
 export {default as DeliveryReceiptScreen} from './DeliveryReceiptScreen';
 export {default as BlacklistScreen} from './BlacklistScreen';
+export {default as CampaignDashboardScreen} from './CampaignDashboardScreen';
+export {default as QuickCampaignScreen} from './QuickCampaignScreen';
+export {default as BulkCampaignScreen} from './BulkCampaignScreen';
 export {default as PlaceholderScreen} from './PlaceholderScreen';
