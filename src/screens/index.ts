@@ -15,4 +15,8 @@ export {default as BlacklistScreen} from './BlacklistScreen';
 export {default as CampaignDashboardScreen} from './CampaignDashboardScreen';
 export {default as QuickCampaignScreen} from './QuickCampaignScreen';
 export {default as BulkCampaignScreen} from './BulkCampaignScreen';
+export {default as CampaignHistoryScreen} from './CampaignHistoryScreen';
+export {default as CampaignBlacklistScreen} from './CampaignBlacklistScreen';
+export {default as CampaignAccountsScreen} from './CampaignAccountsScreen';
+export {default as CampaignAddAccountScreen} from './CampaignAddAccountScreen';
 export {default as PlaceholderScreen} from './PlaceholderScreen';

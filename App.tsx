@@ -24,6 +24,9 @@ import CampaignDashboardScreen from './src/screens/CampaignDashboardScreen';
 import QuickCampaignScreen from './src/screens/QuickCampaignScreen';
 import BulkCampaignScreen from './src/screens/BulkCampaignScreen';
 import CampaignHistoryScreen from './src/screens/CampaignHistoryScreen';
+import CampaignBlacklistScreen from './src/screens/CampaignBlacklistScreen';
+import CampaignAccountsScreen from './src/screens/CampaignAccountsScreen';
+import CampaignAddAccountScreen from './src/screens/CampaignAddAccountScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import SidebarModal from './src/components/SidebarModal';
 
@@ -129,6 +132,12 @@ function App(): React.JSX.Element {
         return <BulkCampaignScreen navigation={navigation} />;
       case 'CampaignHistory':
         return <CampaignHistoryScreen navigation={navigation} />;
+      case 'CampaignBlacklist':
+        return <CampaignBlacklistScreen navigation={navigation} />;
+      case 'CampaignAccounts':
+        return <CampaignAccountsScreen navigation={navigation} />;
+      case 'CampaignAddAccount':
+        return <CampaignAddAccountScreen navigation={navigation} />;
       default:
         return (
           <PlaceholderScreen

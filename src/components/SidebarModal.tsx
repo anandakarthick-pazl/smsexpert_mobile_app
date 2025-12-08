@@ -9,6 +9,7 @@ import {
   Animated,
   Dimensions,
   TouchableWithoutFeedback,
+  Pressable,
 } from 'react-native';
 
 const {width} = Dimensions.get('window');
@@ -79,6 +80,7 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   const userType = isCampaignMode ? 'Campaign User' : 'Dashboard User';
 
   useEffect(() => {
+    console.log('SidebarModal visible changed:', visible);
     if (visible) {
       Animated.parallel([
         Animated.timing(slideAnim, {
@@ -109,6 +111,7 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   }, [visible, slideAnim, fadeAnim]);
 
   const handleNavigate = (route: string) => {
+    console.log('Navigating to:', route);
     onNavigate(route);
   };
 
@@ -116,22 +119,25 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
     setIsCampaignMode(!isCampaignMode);
   };
 
-  if (!visible) {
-    return null;
-  }
+  const handleClose = () => {
+    console.log('Closing sidebar');
+    onClose();
+  };
 
   return (
     <Modal
       visible={visible}
       transparent={true}
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
       statusBarTranslucent={true}>
       <View style={styles.modalContainer}>
         {/* Backdrop */}
-        <TouchableWithoutFeedback onPress={onClose}>
+        <Pressable 
+          style={styles.backdropPressable}
+          onPress={handleClose}>
           <Animated.View style={[styles.backdrop, {opacity: fadeAnim}]} />
-        </TouchableWithoutFeedback>
+        </Pressable>
 
         {/* Sidebar */}
         <Animated.View
@@ -145,12 +151,14 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
               <Text style={styles.logoSMS}>SMS</Text>
               <Text style={styles.logoExpert}>Expert</Text>
             </View>
-            <TouchableOpacity 
-              style={styles.closeButton} 
-              onPress={onClose}
-              activeOpacity={0.7}>
+            <Pressable 
+              style={({pressed}) => [
+                styles.closeButton,
+                pressed && styles.closeButtonPressed,
+              ]} 
+              onPress={handleClose}>
               <Text style={styles.closeIcon}>✕</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* User Info Section */}
@@ -167,15 +175,18 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
           </View>
 
           {/* Switch Mode Button */}
-          <TouchableOpacity
-            style={[styles.switchButton, isCampaignMode && styles.switchButtonCampaign]}
-            onPress={handleSwitchMode}
-            activeOpacity={0.7}>
+          <Pressable
+            style={({pressed}) => [
+              styles.switchButton,
+              isCampaignMode && styles.switchButtonCampaign,
+              pressed && styles.switchButtonPressed,
+            ]}
+            onPress={handleSwitchMode}>
             <Text style={styles.switchIcon}>🔄</Text>
             <Text style={[styles.switchText, isCampaignMode && styles.switchTextCampaign]}>
               {isCampaignMode ? 'Switch to Dashboard' : 'Switch to Campaign Manager'}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Menu Items */}
           <ScrollView
@@ -185,14 +196,14 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
             {menuItems.map((item, index) => {
               const isActive = currentRoute === item.route;
               return (
-                <TouchableOpacity
+                <Pressable
                   key={index}
-                  style={[
+                  style={({pressed}) => [
                     styles.menuItem,
                     isActive && (isCampaignMode ? styles.menuItemActiveCampaign : styles.menuItemActive),
+                    pressed && !isActive && styles.menuItemPressed,
                   ]}
-                  onPress={() => handleNavigate(item.route)}
-                  activeOpacity={0.7}>
+                  onPress={() => handleNavigate(item.route)}>
                   <View
                     style={[
                       styles.menuIconContainer,
@@ -208,20 +219,22 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
                     ]}>
                     {item.name}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               );
             })}
           </ScrollView>
 
           {/* Logout Button */}
           <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={onLogout}
-              activeOpacity={0.7}>
+            <Pressable
+              style={({pressed}) => [
+                styles.logoutButton,
+                pressed && styles.logoutButtonPressed,
+              ]}
+              onPress={onLogout}>
               <Text style={styles.logoutIcon}>🚪</Text>
               <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </Animated.View>
       </View>
@@ -234,12 +247,15 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
   },
-  backdrop: {
+  backdropPressable: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  backdrop: {
+    flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   sidebar: {
@@ -283,6 +299,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  closeButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   closeIcon: {
     fontSize: 15,
@@ -343,6 +362,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(8, 145, 178, 0.15)',
     borderColor: 'rgba(8, 145, 178, 0.3)',
   },
+  switchButtonPressed: {
+    opacity: 0.7,
+  },
   switchIcon: {
     fontSize: 14,
     marginRight: 8,
@@ -375,6 +397,9 @@ const styles = StyleSheet.create({
   },
   menuItemActiveCampaign: {
     backgroundColor: '#0891b2',
+  },
+  menuItemPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   menuIconContainer: {
     width: 28,
@@ -419,6 +444,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'rgba(220, 53, 69, 0.3)',
+  },
+  logoutButtonPressed: {
+    backgroundColor: 'rgba(220, 53, 69, 0.3)',
   },
   logoutIcon: {
     fontSize: 15,

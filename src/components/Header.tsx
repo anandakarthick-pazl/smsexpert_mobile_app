@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
 } from 'react-native';
 
 interface HeaderProps {
@@ -28,16 +29,22 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <View style={styles.header}>
       {/* Menu Button */}
-      <TouchableOpacity
-        style={styles.menuButton}
-        onPress={onMenuPress}
-        activeOpacity={0.7}>
+      <Pressable
+        style={({pressed}) => [
+          styles.menuButton,
+          pressed && styles.menuButtonPressed,
+        ]}
+        onPress={() => {
+          console.log('Menu button pressed');
+          onMenuPress();
+        }}
+        hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
         <Text style={styles.menuIcon}>☰</Text>
-      </TouchableOpacity>
+      </Pressable>
 
       {/* Title */}
       <View style={styles.headerCenter}>
-        <Text style={styles.headerTitle}>{title}</Text>
+        <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
       </View>
 
       {/* Right Side - Wallet, Filter & Notification */}
@@ -85,6 +92,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: '#293B50',
+    zIndex: 100,
   },
   menuButton: {
     width: 44,
@@ -93,6 +101,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 101,
+  },
+  menuButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    transform: [{scale: 0.95}],
   },
   menuIcon: {
     fontSize: 22,
@@ -101,6 +114,7 @@ const styles = StyleSheet.create({
   headerCenter: {
     flex: 1,
     alignItems: 'center',
+    paddingHorizontal: 10,
   },
   headerTitle: {
     fontSize: 16,
