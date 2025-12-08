@@ -32,7 +32,7 @@ const menuItems: MenuItem[] = [
   {name: 'Client Profile', icon: '👤', route: 'Profile'},
   {name: 'Contracts', icon: '📄', route: 'Contracts'},
   {name: 'Invoices', icon: '🧾', route: 'Invoices'},
-  {name: 'Technical Docs', icon: '💡', route: 'TechDocs'},
+  // {name: 'Technical Docs', icon: '💡', route: 'TechDocs'}, // Hidden
   {name: 'Delivery Receipt', icon: '📖', route: 'DeliveryReceipt'},
   {name: 'STOPs/Optouts', icon: '🛟', route: 'Stops'},
   {name: 'Blacklist', icon: '🚫', route: 'Blacklist'},

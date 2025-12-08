@@ -14,6 +14,12 @@ import ReceivedSMSScreen from './src/screens/ReceivedSMSScreen';
 import SentSMSScreen from './src/screens/SentSMSScreen';
 import KeywordsScreen from './src/screens/KeywordsScreen';
 import NumbersScreen from './src/screens/NumbersScreen';
+import GroupsScreen from './src/screens/GroupsScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+import ContractsScreen from './src/screens/ContractsScreen';
+import InvoicesScreen from './src/screens/InvoicesScreen';
+import DeliveryReceiptScreen from './src/screens/DeliveryReceiptScreen';
+import BlacklistScreen from './src/screens/BlacklistScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import SidebarModal from './src/components/SidebarModal';
 
@@ -92,6 +98,18 @@ function App(): React.JSX.Element {
         return <KeywordsScreen navigation={navigation} />;
       case 'Numbers':
         return <NumbersScreen navigation={navigation} />;
+      case 'Groups':
+        return <GroupsScreen navigation={navigation} />;
+      case 'Profile':
+        return <ProfileScreen navigation={navigation} />;
+      case 'Contracts':
+        return <ContractsScreen navigation={navigation} />;
+      case 'Invoices':
+        return <InvoicesScreen navigation={navigation} />;
+      case 'DeliveryReceipt':
+        return <DeliveryReceiptScreen navigation={navigation} />;
+      case 'Blacklist':
+        return <BlacklistScreen navigation={navigation} />;
       default:
         return (
           <PlaceholderScreen
