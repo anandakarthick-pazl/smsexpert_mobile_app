@@ -13,6 +13,7 @@ import SendNewSMSScreen from './src/screens/SendNewSMSScreen';
 import ReceivedSMSScreen from './src/screens/ReceivedSMSScreen';
 import SentSMSScreen from './src/screens/SentSMSScreen';
 import KeywordsScreen from './src/screens/KeywordsScreen';
+import NumbersScreen from './src/screens/NumbersScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import SidebarModal from './src/components/SidebarModal';
 
@@ -89,6 +90,8 @@ function App(): React.JSX.Element {
         return <SentSMSScreen navigation={navigation} />;
       case 'Keywords':
         return <KeywordsScreen navigation={navigation} />;
+      case 'Numbers':
+        return <NumbersScreen navigation={navigation} />;
       default:
         return (
           <PlaceholderScreen

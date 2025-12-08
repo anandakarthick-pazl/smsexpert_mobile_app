@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
+    fontSize: 14,
     color: '#293B50',
   },
   // Dropdown
@@ -571,7 +571,7 @@ const styles = StyleSheet.create({
     maxWidth: 150,
   },
   dropdownText: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#293B50',
   },
   dropdownIcon: {
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   saveButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
     textTransform: 'uppercase',
@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   resetButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ea6118',
     textTransform: 'uppercase',

@@ -912,13 +912,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
   filterButtonTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: '#293B50',
     marginBottom: 2,
   },
   filterButtonSubtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748b',
   },
   filterButtonRight: {
@@ -993,7 +993,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   recordInfoLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748b',
     marginRight: 6,
   },
@@ -1022,12 +1022,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   messageToLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748b',
     marginRight: 6,
   },
   messageTo: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#293B50',
   },
@@ -1046,7 +1046,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fee2e2',
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     color: '#293B50',
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   endOfListText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#94a3b8',
   },
   // Filter Modal
@@ -1114,7 +1114,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   filterModalTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
   },
@@ -1151,7 +1151,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#293B50',
   },
@@ -1185,7 +1185,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   checkboxIcon: {
-    fontSize: 16,
+    fontSize: 18,
     marginRight: 8,
   },
   checkboxLabel: {
@@ -1534,7 +1534,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   applyFilterButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
   },
@@ -1618,7 +1618,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   closeButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
   },

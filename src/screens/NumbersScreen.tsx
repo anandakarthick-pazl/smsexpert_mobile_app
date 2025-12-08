@@ -12,7 +12,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
 
-interface KeywordsScreenProps {
+interface NumbersScreenProps {
   navigation: {
     navigate: (screen: string) => void;
     openDrawer: () => void;
@@ -20,51 +20,47 @@ interface KeywordsScreenProps {
   };
 }
 
-interface KeywordItem {
+interface ContactItem {
   id: number;
-  keyword: string;
-  virtualNumber: string;
-  expiryDate: string;
-  isActive: boolean;
+  name: string;
+  number: string;
+  network: string;
+  isFavourite: boolean;
 }
 
-const KeywordsScreen: React.FC<KeywordsScreenProps> = ({navigation}) => {
+const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
   const [showInfoSheet, setShowInfoSheet] = useState(false);
   
-  const [keywords] = useState<KeywordItem[]>([
-    {
-      id: 83,
-      keyword: '*',
-      virtualNumber: '447418318903',
-      expiryDate: '24 Nov 2026',
-      isActive: true,
-    },
+  const [contacts] = useState<ContactItem[]>([
+    {id: 4755, name: '447748154719', number: '447748154719', network: 'Other', isFavourite: false},
+    {id: 4745, name: 'srf test contact', number: '01932710958', network: '3', isFavourite: false},
+    {id: 4747, name: 'Mark', number: '447740673828', network: 'Other', isFavourite: false},
+    {id: 4748, name: 'Office', number: '441932710710', network: 'Unknown', isFavourite: false},
+    {id: 4756, name: '447407311128', number: '447407311128', network: 'Other', isFavourite: false},
+    {id: 4757, name: 'MYBRANDNAME', number: 'MYBRANDNAME', network: 'Other', isFavourite: false},
   ]);
 
   const handleNotificationPress = () => {
     Alert.alert('Notifications', 'You have 3 new notifications');
   };
 
-  const handleConfigure = (keyword: KeywordItem) => {
+  const handleAddContact = () => {
+    Alert.alert('Add Contact', 'Navigate to add new contact form');
+  };
+
+  const handleEditContact = (contact: ContactItem) => {
+    Alert.alert('Edit Contact', `Edit contact: ${contact.name}`);
+  };
+
+  const handleDeleteContact = (contact: ContactItem) => {
     Alert.alert(
-      'Configure Keyword',
-      `Configure settings for keyword "${keyword.keyword}" on ${keyword.virtualNumber}`,
-      [{text: 'OK'}]
+      'Delete Contact',
+      `Are you sure you want to delete "${contact.name}"?`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {text: 'Delete', style: 'destructive'},
+      ]
     );
-  };
-
-  const handleRegisterKeyword = () => {
-    Alert.alert('Register Keyword', 'Redirecting to keyword registration...');
-    setShowInfoSheet(false);
-  };
-
-  const handleViewContracts = () => {
-    setShowInfoSheet(false);
-    navigation.navigate('Contracts');
-  };
-
-  const getStatusStyle = (isActive: boolean) => {
-    return isActive ? styles.statusActive : styles.statusExpired;
   };
 
   return (
@@ -72,7 +68,7 @@ const KeywordsScreen: React.FC<KeywordsScreenProps> = ({navigation}) => {
       <StatusBar barStyle="light-content" backgroundColor="#293B50" />
 
       <Header
-        title="Keywords"
+        title="Numbers"
         onMenuPress={() => navigation.openDrawer()}
         onNotificationPress={handleNotificationPress}
         notificationCount={3}
@@ -84,75 +80,100 @@ const KeywordsScreen: React.FC<KeywordsScreenProps> = ({navigation}) => {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}>
 
-        {/* Header Card with Total Count and Info Button */}
+        {/* Header Card with Total Count, Add Button and Info Button */}
         <View style={styles.headerCard}>
           <View style={styles.headerLeft}>
-            <Text style={styles.totalLabel}>Total Keywords:</Text>
-            <Text style={styles.totalValue}>{keywords.length}</Text>
+            <Text style={styles.totalLabel}>Total Numbers:</Text>
+            <Text style={styles.totalValue}>{contacts.length}</Text>
           </View>
-          {/* Info Button */}
-          <TouchableOpacity 
-            style={styles.infoButton}
-            onPress={() => setShowInfoSheet(true)}>
-            <Text style={styles.infoButtonIcon}>ℹ️</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            {/* Add Contact Button */}
+            <TouchableOpacity 
+              style={styles.addButton}
+              onPress={handleAddContact}>
+              <Text style={styles.addButtonIcon}>+</Text>
+            </TouchableOpacity>
+            {/* Info Button */}
+            <TouchableOpacity 
+              style={styles.infoButton}
+              onPress={() => setShowInfoSheet(true)}>
+              <Text style={styles.infoButtonIcon}>ℹ️</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Results Card - Sent SMS Style */}
+        {/* Contacts List Card */}
         <View style={styles.resultsCard}>
-          {keywords.length === 0 ? (
+          {contacts.length === 0 ? (
             <View style={styles.noDataContainer}>
-              <Text style={styles.noDataIcon}>🔑</Text>
-              <Text style={styles.noDataTitle}>No Keywords Found</Text>
+              <Text style={styles.noDataIcon}>📱</Text>
+              <Text style={styles.noDataTitle}>No Contacts Found</Text>
               <Text style={styles.noDataText}>
-                You don't have any keywords registered yet.
+                Your address book is empty. Add contacts to get started.
               </Text>
             </View>
           ) : (
             <>
-              {/* Keywords List */}
-              <View style={styles.keywordsList}>
-                {keywords.map(keyword => (
+              {/* Contacts List */}
+              <View style={styles.contactsList}>
+                {contacts.map((contact, index) => (
                   <TouchableOpacity
-                    key={keyword.id}
-                    style={styles.keywordItem}
-                    onPress={() => handleConfigure(keyword)}>
-                    <View style={styles.keywordRow}>
-                      <View style={styles.keywordLeft}>
-                        <Text style={styles.keywordLabel}>Keyword:</Text>
-                        <View style={styles.keywordBadge}>
-                          <Text style={styles.keywordBadgeText}>{keyword.keyword}</Text>
+                    key={contact.id}
+                    style={[
+                      styles.contactItem,
+                      index === contacts.length - 1 && styles.lastContactItem
+                    ]}
+                    onPress={() => handleEditContact(contact)}>
+                    {/* Row 1: Name and Favourite */}
+                    <View style={styles.contactRow}>
+                      <View style={styles.contactLeft}>
+                        <Text style={styles.contactLabel}>Name:</Text>
+                        <View style={styles.nameBadge}>
+                          <Text style={styles.nameBadgeText}>{contact.name}</Text>
                         </View>
                       </View>
-                      <View style={[styles.statusBadge, getStatusStyle(keyword.isActive)]}>
-                        <Text style={styles.statusText}>
-                          {keyword.isActive ? 'Active' : 'Expired'}
+                      <View style={[
+                        styles.favouriteBadge,
+                        contact.isFavourite ? styles.favouriteYes : styles.favouriteNo
+                      ]}>
+                        <Text style={styles.favouriteText}>
+                          {contact.isFavourite ? '⭐ Yes' : '☆ No'}
                         </Text>
                       </View>
                     </View>
-                    <View style={styles.keywordDetailRow}>
-                      <Text style={styles.keywordDetailIcon}>📱</Text>
-                      <Text style={styles.keywordDetailText}>{keyword.virtualNumber}</Text>
+
+                    {/* Row 2: Phone Number with Edit/Delete icons */}
+                    <View style={styles.contactDetailRowWithActions}>
+                      <View style={styles.contactDetailLeft}>
+                        <Text style={styles.contactDetailIcon}>📱</Text>
+                        <Text style={styles.contactDetailText}>{contact.number}</Text>
+                      </View>
+                      <View style={styles.actionsRow}>
+                        <TouchableOpacity 
+                          style={styles.editButton}
+                          onPress={() => handleEditContact(contact)}>
+                          <Text style={styles.actionIcon}>✏️</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                          style={styles.deleteButton}
+                          onPress={() => handleDeleteContact(contact)}>
+                          <Text style={styles.actionIcon}>🗑️</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
-                    <View style={styles.keywordDetailRow}>
-                      <Text style={styles.keywordDetailIcon}>📅</Text>
-                      <Text style={styles.keywordDetailText}>
-                        {keyword.isActive ? `Valid until ${keyword.expiryDate}` : `Expired on ${keyword.expiryDate}`}
-                      </Text>
+
+                    {/* Row 3: Network */}
+                    <View style={styles.contactDetailRow}>
+                      <Text style={styles.contactDetailIcon}>📶</Text>
+                      <Text style={styles.contactDetailText}>{contact.network}</Text>
                     </View>
-                    <TouchableOpacity 
-                      style={styles.configureButton}
-                      onPress={() => handleConfigure(keyword)}>
-                      <Text style={styles.configureButtonIcon}>⚙️</Text>
-                      <Text style={styles.configureButtonText}>Configure</Text>
-                    </TouchableOpacity>
                   </TouchableOpacity>
                 ))}
               </View>
 
               {/* End of List Indicator */}
               <View style={styles.endOfListContainer}>
-                <Text style={styles.endOfListText}>— End of keywords —</Text>
+                <Text style={styles.endOfListText}>— End of contacts —</Text>
               </View>
             </>
           )}
@@ -172,7 +193,7 @@ const KeywordsScreen: React.FC<KeywordsScreenProps> = ({navigation}) => {
             <View style={styles.bottomSheetHeader}>
               <View style={styles.bottomSheetTitleRow}>
                 <Text style={styles.bottomSheetIcon}>ℹ️</Text>
-                <Text style={styles.bottomSheetTitle}>Keywords Information</Text>
+                <Text style={styles.bottomSheetTitle}>Numbers Information</Text>
               </View>
               <TouchableOpacity
                 style={styles.modalCloseBtn}
@@ -184,70 +205,62 @@ const KeywordsScreen: React.FC<KeywordsScreenProps> = ({navigation}) => {
             {/* Modal Body */}
             <ScrollView style={styles.bottomSheetBody} showsVerticalScrollIndicator={false}>
               
-              {/* Register Keywords Section */}
-              <View style={styles.infoSection}>
-                <View style={styles.infoSectionHeader}>
-                  <View style={[styles.infoSectionIconBox, styles.yellowBg]}>
-                    <Text style={styles.infoSectionIcon}>➕</Text>
-                  </View>
-                  <Text style={styles.infoSectionTitle}>Register Keywords</Text>
-                </View>
-                <View style={[styles.infoSectionContent, styles.yellowBorder]}>
-                  <Text style={styles.infoSectionText}>
-                    → You can{' '}
-                    <Text style={styles.infoLink} onPress={handleRegisterKeyword}>
-                      register
-                    </Text>{' '}
-                    1 more keyword on 60300. Please contact us if you think you'll need more keywords.
-                  </Text>
-                </View>
-              </View>
-
-              {/* Virtual Number Section */}
-              <View style={styles.infoSection}>
-                <View style={styles.infoSectionHeader}>
-                  <View style={[styles.infoSectionIconBox, styles.purpleBg]}>
-                    <Text style={styles.infoSectionIcon}>📱</Text>
-                  </View>
-                  <Text style={styles.infoSectionTitle}>Dedicated Virtual Mobile Number</Text>
-                </View>
-                <View style={[styles.infoSectionContent, styles.purpleBorder]}>
-                  <Text style={styles.infoSectionText}>
-                    → Please contact us to discuss setting up dedicated virtual numbers.
-                  </Text>
-                </View>
-              </View>
-
-              {/* Contract Section */}
-              <View style={styles.infoSection}>
-                <View style={styles.infoSectionHeader}>
-                  <View style={[styles.infoSectionIconBox, styles.redBg]}>
-                    <Text style={styles.infoSectionIcon}>📄</Text>
-                  </View>
-                  <Text style={styles.infoSectionTitle}>Contractual Reminder</Text>
-                </View>
-                <View style={[styles.infoSectionContent, styles.redBorder]}>
-                  <Text style={styles.infoSectionText}>
-                    → By continuing to use the SMS Expert services you agree to the latest{' '}
-                    <Text style={styles.infoLinkRed} onPress={handleViewContracts}>
-                      contract
-                    </Text>{' '}
-                    and to abide by all applicable laws and regulations.
-                  </Text>
-                </View>
-              </View>
-
-              {/* About Keywords Section */}
+              {/* Manage Your Contact Numbers Section */}
               <View style={styles.infoSection}>
                 <View style={styles.infoSectionHeader}>
                   <View style={[styles.infoSectionIconBox, styles.blueBg]}>
-                    <Text style={styles.infoSectionIcon}>💡</Text>
+                    <Text style={styles.infoSectionIcon}>📱</Text>
                   </View>
-                  <Text style={styles.infoSectionTitle}>About Keywords & Virtual Numbers</Text>
+                  <Text style={styles.infoSectionTitle}>Manage Your Contact Numbers</Text>
                 </View>
                 <View style={[styles.infoSectionContent, styles.blueBorder]}>
                   <Text style={styles.infoSectionText}>
-                    Keywords are text commands that customers can send to your virtual numbers to trigger automated responses, subscriptions, or other services. Each keyword is associated with a virtual number and can be configured with various modules to handle different types of interactions.
+                    This is your personal address book where you can store and manage phone numbers for easy SMS sending. You can add individual contacts and organize them by marking favourites.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Add Contacts Section */}
+              <View style={styles.infoSection}>
+                <View style={styles.infoSectionHeader}>
+                  <View style={[styles.infoSectionIconBox, styles.greenBg]}>
+                    <Text style={styles.infoSectionIcon}>➕</Text>
+                  </View>
+                  <Text style={styles.infoSectionTitle}>Adding Contacts</Text>
+                </View>
+                <View style={[styles.infoSectionContent, styles.greenBorder]}>
+                  <Text style={styles.infoSectionText}>
+                    Tap the + button to add new contacts to your address book. You can store names and phone numbers for quick access when sending SMS messages.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Favourites Section */}
+              <View style={styles.infoSection}>
+                <View style={styles.infoSectionHeader}>
+                  <View style={[styles.infoSectionIconBox, styles.yellowBg]}>
+                    <Text style={styles.infoSectionIcon}>⭐</Text>
+                  </View>
+                  <Text style={styles.infoSectionTitle}>Favourite Contacts</Text>
+                </View>
+                <View style={[styles.infoSectionContent, styles.yellowBorder]}>
+                  <Text style={styles.infoSectionText}>
+                    Mark your frequently used contacts as favourites for quick access. Favourite contacts appear at the top of your contact list when sending messages.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Network Info Section */}
+              <View style={styles.infoSection}>
+                <View style={styles.infoSectionHeader}>
+                  <View style={[styles.infoSectionIconBox, styles.purpleBg]}>
+                    <Text style={styles.infoSectionIcon}>📶</Text>
+                  </View>
+                  <Text style={styles.infoSectionTitle}>Network Information</Text>
+                </View>
+                <View style={[styles.infoSectionContent, styles.purpleBorder]}>
+                  <Text style={styles.infoSectionText}>
+                    Each contact shows their network provider information. This helps you understand delivery routes and potential costs for different networks.
                   </Text>
                 </View>
               </View>
@@ -316,6 +329,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ea6118',
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#16a34a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonIcon: {
+    fontSize: 22,
+    color: '#ffffff',
+    fontWeight: '600',
+  },
   infoButton: {
     width: 36,
     height: 36,
@@ -329,7 +360,7 @@ const styles = StyleSheet.create({
   infoButtonIcon: {
     fontSize: 18,
   },
-  // Results Card - Sent SMS Style
+  // Results Card
   resultsCard: {
     backgroundColor: '#ffffff',
     borderRadius: 14,
@@ -364,90 +395,106 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  // Keywords List
-  keywordsList: {
+  // Contacts List
+  contactsList: {
     padding: 0,
   },
-  keywordItem: {
+  contactItem: {
     padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
   },
-  keywordRow: {
+  lastContactItem: {
+    borderBottomWidth: 0,
+  },
+  contactRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
   },
-  keywordLeft: {
+  contactLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  keywordLabel: {
+  contactLabel: {
     fontSize: 12,
     color: '#64748b',
     marginRight: 8,
   },
-  keywordBadge: {
+  nameBadge: {
     backgroundColor: '#ea6118',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  keywordBadgeText: {
+  nameBadgeText: {
     fontSize: 14,
     fontWeight: '700',
     color: '#ffffff',
   },
-  statusBadge: {
+  favouriteBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  statusActive: {
-    backgroundColor: '#dcfce7',
+  favouriteYes: {
+    backgroundColor: '#fef3c7',
   },
-  statusExpired: {
-    backgroundColor: '#fee2e2',
+  favouriteNo: {
+    backgroundColor: '#f1f5f9',
   },
-  statusText: {
+  favouriteText: {
     fontSize: 12,
     fontWeight: '600',
-    textTransform: 'uppercase',
     color: '#293B50',
   },
-  keywordDetailRow: {
+  contactDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 6,
   },
-  keywordDetailIcon: {
+  contactDetailRowWithActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  contactDetailLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  contactDetailIcon: {
     fontSize: 18,
     marginRight: 8,
   },
-  keywordDetailText: {
+  contactDetailText: {
     fontSize: 14,
     color: '#475569',
   },
-  configureButton: {
+  actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ea6118',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    gap: 8,
+  },
+  editButton: {
+    width: 32,
+    height: 32,
     borderRadius: 8,
-    marginTop: 10,
-    alignSelf: 'flex-start',
+    backgroundColor: '#f59e0b',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  configureButtonIcon: {
-    fontSize: 18,
-    marginRight: 6,
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#dc2626',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  configureButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
+  actionIcon: {
+    fontSize: 16,
   },
   // End of List
   endOfListContainer: {
@@ -493,7 +540,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   bottomSheetTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
   },
@@ -531,17 +578,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 10,
   },
+  blueBg: {
+    backgroundColor: '#f0f9ff',
+  },
+  greenBg: {
+    backgroundColor: '#dcfce7',
+  },
   yellowBg: {
     backgroundColor: '#fef3c7',
   },
   purpleBg: {
     backgroundColor: '#ede9fe',
-  },
-  redBg: {
-    backgroundColor: '#fef2f2',
-  },
-  blueBg: {
-    backgroundColor: '#f0f9ff',
   },
   infoSectionIcon: {
     fontSize: 18,
@@ -558,32 +605,22 @@ const styles = StyleSheet.create({
     padding: 14,
     borderLeftWidth: 4,
   },
+  blueBorder: {
+    borderLeftColor: '#0891b2',
+  },
+  greenBorder: {
+    borderLeftColor: '#16a34a',
+  },
   yellowBorder: {
     borderLeftColor: '#f59e0b',
   },
   purpleBorder: {
     borderLeftColor: '#8b5cf6',
   },
-  redBorder: {
-    borderLeftColor: '#ef4444',
-  },
-  blueBorder: {
-    borderLeftColor: '#0891b2',
-  },
   infoSectionText: {
     fontSize: 14,
     color: '#475569',
     lineHeight: 22,
-  },
-  infoLink: {
-    color: '#ea6118',
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
-  infoLinkRed: {
-    color: '#dc2626',
-    fontWeight: '600',
-    textDecorationLine: 'underline',
   },
   // Bottom Sheet Footer
   bottomSheetFooter: {
@@ -612,4 +649,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default KeywordsScreen;
+export default NumbersScreen;

@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   formLabel: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#293B50',
   },
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 15,
+    fontSize: 14,
     color: '#293B50',
   },
   textArea: {
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   charCounter: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748b',
     fontWeight: '600',
     marginTop: 8,
@@ -763,7 +763,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   scheduleButtonText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: '#ffffff',
   },
@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   dateText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#293B50',
   },
   timeDropdown: {
@@ -790,7 +790,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timeText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#293B50',
     marginRight: 6,
   },
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   dropdownText: {
-    fontSize: 15,
+    fontSize: 14,
     color: '#293B50',
   },
   dropdownArrow: {
@@ -892,7 +892,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   campaignTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#293B50',
     marginBottom: 10,
@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   launchButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
   },
@@ -977,7 +977,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   requirementItem: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748b',
     marginBottom: 4,
     lineHeight: 20,

@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   formTitle: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '700',
     color: Colors.textPrimary,
     marginBottom: 8,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   label: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: Colors.textPrimary,
   },
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.textPrimary,
   },
   passwordContainer: {
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   loginButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     color: Colors.textWhite,
     textTransform: 'uppercase',

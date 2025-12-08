@@ -111,14 +111,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#293B50',
     marginBottom: 10,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
     marginBottom: 28,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   backButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
   },
