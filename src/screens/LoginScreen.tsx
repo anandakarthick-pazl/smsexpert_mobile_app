@@ -65,12 +65,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({navigation}) => {
     setButtonText('Signing In...');
 
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
-
       setButtonText('Success! Redirecting...');
-      
-      // Navigate to Dashboard
       setTimeout(() => {
         navigation.navigate('Dashboard');
       }, 500);
@@ -236,148 +232,150 @@ const styles = StyleSheet.create({
   },
   brandSection: {
     backgroundColor: Colors.secondary,
-    paddingHorizontal: 20,
-    paddingVertical: 35,
+    paddingHorizontal: 24,
+    paddingVertical: 50,
     alignItems: 'center',
   },
   brandLogoContainer: {
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
   },
   brandLogoText: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   smsText: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: '800',
     color: Colors.primary,
     letterSpacing: -1,
   },
   expertText: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: '800',
     color: Colors.textWhite,
     letterSpacing: -1,
   },
   brandUnderline: {
-    width: 60,
-    height: 2,
+    width: 80,
+    height: 4,
     backgroundColor: Colors.primary,
     borderRadius: 2,
-    marginTop: 6,
+    marginTop: 10,
   },
   brandSubtitle: {
-    fontSize: 11,
+    fontSize: 14,
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 22,
   },
   formSection: {
     flex: 1,
     backgroundColor: Colors.cardBackground,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 30,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 40,
   },
   formHeader: {
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: 28,
   },
   formTitle: {
-    fontSize: 20,
+    fontSize: 26,
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 2,
+    marginBottom: 8,
   },
   formSubtitle: {
-    fontSize: 11,
+    fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 20,
   },
   alertError: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.errorLight,
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 12,
-    borderLeftWidth: 3,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    borderLeftWidth: 4,
     borderLeftColor: Colors.error,
   },
   alertIcon: {
-    fontSize: 12,
-    marginRight: 6,
+    fontSize: 18,
+    marginRight: 10,
   },
   alertText: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 14,
     color: Colors.errorDark,
     fontWeight: '500',
+    lineHeight: 20,
   },
   formGroup: {
-    marginBottom: 14,
+    marginBottom: 20,
   },
   labelContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 10,
   },
   labelIcon: {
-    fontSize: 10,
-    marginRight: 6,
+    fontSize: 18,
+    marginRight: 8,
   },
   label: {
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.textPrimary,
   },
   input: {
     backgroundColor: Colors.inputBackground,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: Colors.borderLight,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 13,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 15,
     color: Colors.textPrimary,
   },
   passwordContainer: {
     position: 'relative',
   },
   passwordInput: {
-    paddingRight: 40,
+    paddingRight: 50,
   },
   passwordToggle: {
     position: 'absolute',
-    right: 10,
+    right: 14,
     top: '50%',
-    transform: [{translateY: -10}],
-    padding: 4,
+    transform: [{translateY: -12}],
+    padding: 6,
   },
   passwordToggleIcon: {
-    fontSize: 14,
+    fontSize: 20,
   },
   formExtras: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginBottom: 18,
+    marginBottom: 28,
   },
   forgotLink: {
-    fontSize: 11,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
     color: Colors.primary,
   },
   loginButton: {
     backgroundColor: Colors.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
+    borderRadius: 14,
+    paddingVertical: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 6,
+    gap: 10,
     shadowColor: Colors.primary,
     shadowOffset: {
       width: 0,
@@ -391,14 +389,14 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   loginButtonIcon: {
-    fontSize: 12,
+    fontSize: 18,
   },
   loginButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: Colors.textWhite,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
 });
 

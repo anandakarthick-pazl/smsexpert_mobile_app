@@ -10,6 +10,8 @@ import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import SMSWalletScreen from './src/screens/SMSWalletScreen';
 import SendNewSMSScreen from './src/screens/SendNewSMSScreen';
+import ReceivedSMSScreen from './src/screens/ReceivedSMSScreen';
+import SentSMSScreen from './src/screens/SentSMSScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import SidebarModal from './src/components/SidebarModal';
 
@@ -80,6 +82,10 @@ function App(): React.JSX.Element {
         return <SMSWalletScreen navigation={navigation} />;
       case 'SendSMS':
         return <SendNewSMSScreen navigation={navigation} />;
+      case 'ReceivedSMS':
+        return <ReceivedSMSScreen navigation={navigation} />;
+      case 'SentSMS':
+        return <SentSMSScreen navigation={navigation} />;
       default:
         return (
           <PlaceholderScreen
