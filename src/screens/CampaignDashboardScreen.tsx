@@ -14,9 +14,10 @@ import Header from '../components/Header';
 
 interface CampaignDashboardScreenProps {
   navigation: any;
+  walletBalance?: string;
 }
 
-const CampaignDashboardScreen: React.FC<CampaignDashboardScreenProps> = ({navigation}) => {
+const CampaignDashboardScreen: React.FC<CampaignDashboardScreenProps> = ({navigation, walletBalance = '£0.00'}) => {
   
   const handleQuickCampaign = () => {
     navigation.navigate('CampaignQuick');
@@ -52,7 +53,7 @@ const CampaignDashboardScreen: React.FC<CampaignDashboardScreenProps> = ({naviga
       <Header 
         title="Campaign Manager" 
         onMenuPress={() => navigation.openDrawer()}
-        walletBalance="£6,859.83"
+        walletBalance={walletBalance}
       />
       
       <ScrollView 

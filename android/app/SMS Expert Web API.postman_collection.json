@@ -1,0 +1,394 @@
+{
+	"info": {
+		"_postman_id": "3e458a7a-230c-47fe-bfb5-05f65e5bba40",
+		"name": "SMS Expert Web API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "28725928"
+	},
+	"item": [
+		{
+			"name": "Send SMS",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://smsexpert.nedtechnology.co.in/api/smsg/sms.mes?usr=master&pwd=master&from=test&to=917094514970&type=text&route=d&txt=Hello",
+					"protocol": "https",
+					"host": [
+						"smsexpert",
+						"nedtechnology",
+						"co",
+						"in"
+					],
+					"path": [
+						"api",
+						"smsg",
+						"sms.mes"
+					],
+					"query": [
+						{
+							"key": "usr",
+							"value": "master"
+						},
+						{
+							"key": "pwd",
+							"value": "master"
+						},
+						{
+							"key": "from",
+							"value": "test"
+						},
+						{
+							"key": "to",
+							"value": "917094514970"
+						},
+						{
+							"key": "type",
+							"value": "text"
+						},
+						{
+							"key": "route",
+							"value": "d"
+						},
+						{
+							"key": "txt",
+							"value": "Hello"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Wallet Balance",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://smsexpert.nedtechnology.co.in/api/plat_wallet?usr=master&pwd=master",
+					"protocol": "https",
+					"host": [
+						"smsexpert",
+						"nedtechnology",
+						"co",
+						"in"
+					],
+					"path": [
+						"api",
+						"plat_wallet"
+					],
+					"query": [
+						{
+							"key": "usr",
+							"value": "master"
+						},
+						{
+							"key": "pwd",
+							"value": "master"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Receiving Delivery Receipts",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://ptsv3.com/storacall",
+					"protocol": "https",
+					"host": [
+						"ptsv3",
+						"com"
+					],
+					"path": [
+						"storacall"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Keyword Availability",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://smsexpert.nedtechnology.co.in/api/keyword_whois?usr=master&pwd=master&keyword=*",
+					"protocol": "https",
+					"host": [
+						"smsexpert",
+						"nedtechnology",
+						"co",
+						"in"
+					],
+					"path": [
+						"api",
+						"keyword_whois"
+					],
+					"query": [
+						{
+							"key": "usr",
+							"value": "master"
+						},
+						{
+							"key": "pwd",
+							"value": "master"
+						},
+						{
+							"key": "keyword",
+							"value": "*"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Keyword Registration",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://smsexpert.nedtechnology.co.in/api/plat_keyreg?usr=master&pwd=master&keyword=*&shortcode=60300",
+					"protocol": "https",
+					"host": [
+						"smsexpert",
+						"nedtechnology",
+						"co",
+						"in"
+					],
+					"path": [
+						"api",
+						"plat_keyreg"
+					],
+					"query": [
+						{
+							"key": "usr",
+							"value": "master"
+						},
+						{
+							"key": "pwd",
+							"value": "master"
+						},
+						{
+							"key": "keyword",
+							"value": "*"
+						},
+						{
+							"key": "shortcode",
+							"value": "60300"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Keyword Forwarding",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://smsexpert.nedtechnology.co.in/api/plat_keysetfwd?usr=master&pwd=master&keyword=HELLO&shortcode=60300&email=user@example.com&url=https://mysite.com/webhook",
+					"protocol": "https",
+					"host": [
+						"smsexpert",
+						"nedtechnology",
+						"co",
+						"in"
+					],
+					"path": [
+						"api",
+						"plat_keysetfwd"
+					],
+					"query": [
+						{
+							"key": "usr",
+							"value": "master"
+						},
+						{
+							"key": "pwd",
+							"value": "master"
+						},
+						{
+							"key": "keyword",
+							"value": "HELLO"
+						},
+						{
+							"key": "shortcode",
+							"value": "60300"
+						},
+						{
+							"key": "email",
+							"value": "user@example.com"
+						},
+						{
+							"key": "url",
+							"value": "https://mysite.com/webhook"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Keyword List",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://smsexpert.nedtechnology.co.in/api/plat_keylist?usr=master&pwd=master",
+					"protocol": "https",
+					"host": [
+						"smsexpert",
+						"nedtechnology",
+						"co",
+						"in"
+					],
+					"path": [
+						"api",
+						"plat_keylist"
+					],
+					"query": [
+						{
+							"key": "usr",
+							"value": "master"
+						},
+						{
+							"key": "pwd",
+							"value": "master"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Keyword Renewal",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://smsexpert.nedtechnology.co.in/api/plat_keyrenew?usr=master&pwd=master&keyword=HELLO&shortcode=60300",
+					"protocol": "https",
+					"host": [
+						"smsexpert",
+						"nedtechnology",
+						"co",
+						"in"
+					],
+					"path": [
+						"api",
+						"plat_keyrenew"
+					],
+					"query": [
+						{
+							"key": "usr",
+							"value": "master"
+						},
+						{
+							"key": "pwd",
+							"value": "master"
+						},
+						{
+							"key": "keyword",
+							"value": "HELLO"
+						},
+						{
+							"key": "shortcode",
+							"value": "60300"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Keyword Deletion",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://smsexpert.nedtechnology.co.in/api/plat_keydel?usr=master&pwd=master&keyword=OBSOLETE&shortcode=60300",
+					"protocol": "https",
+					"host": [
+						"smsexpert",
+						"nedtechnology",
+						"co",
+						"in"
+					],
+					"path": [
+						"api",
+						"plat_keydel"
+					],
+					"query": [
+						{
+							"key": "usr",
+							"value": "master"
+						},
+						{
+							"key": "pwd",
+							"value": "master"
+						},
+						{
+							"key": "keyword",
+							"value": "OBSOLETE"
+						},
+						{
+							"key": "shortcode",
+							"value": "60300"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Keyword Replacement",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "https://smsexpert.nedtechnology.co.in/api/plat_keyreplace?usr=master&pwd=master&oldkeyword=OLDTEXT&newkeyword=NEWTEXT&shortcode=6030",
+					"protocol": "https",
+					"host": [
+						"smsexpert",
+						"nedtechnology",
+						"co",
+						"in"
+					],
+					"path": [
+						"api",
+						"plat_keyreplace"
+					],
+					"query": [
+						{
+							"key": "usr",
+							"value": "master"
+						},
+						{
+							"key": "pwd",
+							"value": "master"
+						},
+						{
+							"key": "oldkeyword",
+							"value": "OLDTEXT"
+						},
+						{
+							"key": "newkeyword",
+							"value": "NEWTEXT"
+						},
+						{
+							"key": "shortcode",
+							"value": "6030"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

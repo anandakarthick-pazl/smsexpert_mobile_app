@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Colors -->
+    <color name="primary">#293B50</color>
+    <color name="primary_dark">#1a2836</color>
+    <color name="accent">#ea6118</color>
+    
+    <!-- Notification Color -->
+    <color name="notification_color">#ea6118</color>
+</resources>

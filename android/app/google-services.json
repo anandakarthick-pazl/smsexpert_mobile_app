@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "155560296616",
+    "project_id": "sms-expert-173cd",
+    "storage_bucket": "sms-expert-173cd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:155560296616:android:66cfced92bf34406d4429d",
+        "android_client_info": {
+          "package_name": "com.smsexpertapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzvjPGxZ19JkVtUkABwJeGAgmuQ9Mwjc8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -3,13 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
   Modal,
   Animated,
   Dimensions,
-  TouchableWithoutFeedback,
   Pressable,
+  Alert,
 } from 'react-native';
 
 const {width} = Dimensions.get('window');
@@ -55,6 +54,7 @@ interface SidebarModalProps {
   onClose: () => void;
   onNavigate: (route: string) => void;
   onLogout: () => void;
+  onLogoutAllDevices?: () => void;
   currentRoute: string;
   userName?: string;
   companyName?: string;
@@ -65,6 +65,7 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   onClose,
   onNavigate,
   onLogout,
+  onLogoutAllDevices,
   currentRoute,
   userName = 'John Doe',
   companyName = 'Dashboard User',
@@ -122,6 +123,40 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   const handleClose = () => {
     console.log('Closing sidebar');
     onClose();
+  };
+
+  const handleLogoutAllDevices = () => {
+    Alert.alert(
+      'Logout All Devices',
+      'Are you sure you want to logout from all devices? You will need to login again on all your devices.',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Logout All',
+          style: 'destructive',
+          onPress: () => {
+            if (onLogoutAllDevices) {
+              onLogoutAllDevices();
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: onLogout,
+        },
+      ]
+    );
   };
 
   return (
@@ -222,6 +257,46 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
                 </Pressable>
               );
             })}
+
+            {/* Divider */}
+            <View style={styles.menuDivider} />
+
+            {/* Settings Section */}
+            <Text style={styles.sectionTitle}>Settings</Text>
+
+            {/* Change Password */}
+            <Pressable
+              style={({pressed}) => [
+                styles.menuItem,
+                currentRoute === 'ChangePassword' && styles.menuItemActive,
+                pressed && currentRoute !== 'ChangePassword' && styles.menuItemPressed,
+              ]}
+              onPress={() => handleNavigate('ChangePassword')}>
+              <View style={[styles.menuIconContainer, styles.menuIconContainerSettings]}>
+                <Text style={styles.menuItemIcon}>🔐</Text>
+              </View>
+              <Text style={[
+                styles.menuItemText,
+                currentRoute === 'ChangePassword' && styles.menuItemTextActive,
+              ]}>
+                Change Password
+              </Text>
+            </Pressable>
+
+            {/* Logout All Devices */}
+            <Pressable
+              style={({pressed}) => [
+                styles.menuItem,
+                pressed && styles.menuItemPressed,
+              ]}
+              onPress={handleLogoutAllDevices}>
+              <View style={[styles.menuIconContainer, styles.menuIconContainerWarning]}>
+                <Text style={styles.menuItemIcon}>📱</Text>
+              </View>
+              <Text style={styles.menuItemText}>
+                Logout All Devices
+              </Text>
+            </Pressable>
           </ScrollView>
 
           {/* Logout Button */}
@@ -231,7 +306,7 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
                 styles.logoutButton,
                 pressed && styles.logoutButtonPressed,
               ]}
-              onPress={onLogout}>
+              onPress={handleLogout}>
               <Text style={styles.logoutIcon}>🚪</Text>
               <Text style={styles.logoutText}>Logout</Text>
             </Pressable>
@@ -416,6 +491,12 @@ const styles = StyleSheet.create({
   menuIconContainerActive: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
   },
+  menuIconContainerSettings: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+  },
+  menuIconContainerWarning: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+  },
   menuItemIcon: {
     fontSize: 14,
   },
@@ -428,6 +509,21 @@ const styles = StyleSheet.create({
   menuItemTextActive: {
     color: '#ffffff',
     fontWeight: '600',
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: 8,
+    marginHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.5)',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   footer: {
     padding: 12,

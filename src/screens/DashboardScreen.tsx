@@ -67,9 +67,10 @@ interface DashboardScreenProps {
     navigate: (screen: string) => void;
     openDrawer: () => void;
   };
+  walletBalance?: string;
 }
 
-const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation}) => {
+const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation, walletBalance = '£0.00'}) => {
   const [showFilterPopup, setShowFilterPopup] = useState(false);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
@@ -112,7 +113,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation}) => {
         onNotificationPress={handleNotificationPress}
         onFilterPress={handleFilterPress}
         notificationCount={3}
-        walletBalance="£6859"
+        walletBalance={walletBalance}
         showFilter={true}
       />
 
@@ -175,7 +176,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation}) => {
             </View>
             <View style={styles.financialCard}>
               <Text style={styles.financialIcon}>💳</Text>
-              <Text style={styles.financialValue}>£6,859</Text>
+              <Text style={styles.financialValue}>{walletBalance}</Text>
               <Text style={styles.financialLabel}>Wallet Balance</Text>
             </View>
           </View>

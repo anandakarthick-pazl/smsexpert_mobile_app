@@ -14,20 +14,22 @@ import {
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Colors from '../theme/colors';
+import {login} from '../services/authService';
+import {toast} from '../context/ToastContext';
 
 interface LoginScreenProps {
   navigation: {
     navigate: (screen: string) => void;
     reset: (config: {index: number; routes: {name: string}[]}) => void;
   };
+  onLoginSuccess?: (userData: any) => void;
 }
 
-const LoginScreen: React.FC<LoginScreenProps> = ({navigation}) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({navigation, onLoginSuccess}) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
   const [buttonText, setButtonText] = useState('Sign In');
 
   const passwordRef = useRef<TextInput>(null);
@@ -50,14 +52,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({navigation}) => {
   }, [fadeAnim, slideAnim]);
 
   const handleLogin = async () => {
-    setError('');
-
+    // Validate inputs
     if (!username.trim()) {
-      setError('Please enter your username');
+      toast.warning('Please enter your username');
       return;
     }
     if (!password.trim()) {
-      setError('Please enter your password');
+      toast.warning('Please enter your password');
       return;
     }
 
@@ -65,20 +66,38 @@ const LoginScreen: React.FC<LoginScreenProps> = ({navigation}) => {
     setButtonText('Signing In...');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setButtonText('Success! Redirecting...');
-      setTimeout(() => {
-        navigation.navigate('Dashboard');
-      }, 500);
-    } catch (err) {
-      setError('Login failed. Please check your credentials.');
+      // Call login API (toast errors are shown automatically by apiService)
+      const result = await login(username.trim(), password);
+      
+      console.log('Login result:', result);
+
+      if (result.success && result.data) {
+        setButtonText('Success! Redirecting...');
+        
+        // Call onLoginSuccess callback if provided
+        if (onLoginSuccess) {
+          onLoginSuccess(result.data);
+        }
+        
+        // Navigate to Dashboard after short delay
+        setTimeout(() => {
+          navigation.navigate('Dashboard');
+        }, 500);
+      } else {
+        // Error toast is already shown by apiService
+        setButtonText('Sign In');
+        setIsLoading(false);
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      // Error toast is already shown by apiService
       setButtonText('Sign In');
       setIsLoading(false);
     }
   };
 
   const handleForgotPassword = () => {
-    console.log('Navigate to forgot password');
+    toast.info('Forgot password feature coming soon');
   };
 
   return (
@@ -122,14 +141,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({navigation}) => {
                   Sign in to access your SMS Expert dashboard
                 </Text>
               </View>
-
-              {/* Error Message */}
-              {error ? (
-                <View style={styles.alertError}>
-                  <Text style={styles.alertIcon}>⚠️</Text>
-                  <Text style={styles.alertText}>{error}</Text>
-                </View>
-              ) : null}
 
               {/* Username Field */}
               <View style={styles.formGroup}>
@@ -292,27 +303,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
-  },
-  alertError: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.errorLight,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.error,
-  },
-  alertIcon: {
-    fontSize: 18,
-    marginRight: 10,
-  },
-  alertText: {
-    flex: 1,
-    fontSize: 14,
-    color: Colors.errorDark,
-    fontWeight: '500',
     lineHeight: 20,
   },
   formGroup: {
