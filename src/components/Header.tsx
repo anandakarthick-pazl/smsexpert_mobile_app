@@ -11,20 +11,14 @@ interface HeaderProps {
   title: string;
   onMenuPress: () => void;
   onNotificationPress?: () => void;
-  onFilterPress?: () => void;
   notificationCount?: number;
-  walletBalance?: string;
-  showFilter?: boolean;
 }
 
 const Header: React.FC<HeaderProps> = ({
   title,
   onMenuPress,
   onNotificationPress,
-  onFilterPress,
   notificationCount = 0,
-  walletBalance = '£0',
-  showFilter = false,
 }) => {
   return (
     <View style={styles.header}>
@@ -47,25 +41,9 @@ const Header: React.FC<HeaderProps> = ({
         <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
       </View>
 
-      {/* Right Side - Wallet, Filter & Notification */}
+      {/* Right Side - Notification */}
       <View style={styles.rightSection}>
-        {/* Wallet Balance - Always visible */}
-        <View style={styles.walletBadge}>
-          <Text style={styles.walletIcon}>💳</Text>
-          <Text style={styles.walletText}>{walletBalance}</Text>
-        </View>
-
-        {/* Filter Icon - Only on Dashboard */}
-        {showFilter && (
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={onFilterPress}
-            activeOpacity={0.7}>
-            <Text style={styles.filterIcon}>📅</Text>
-          </TouchableOpacity>
-        )}
-        
-        {/* Notification Bell - Always visible */}
+        {/* Notification Bell */}
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onNotificationPress}
@@ -117,31 +95,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: '#ffffff',
   },
   rightSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  walletBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  walletIcon: {
-    fontSize: 16,
-    marginRight: 6,
-  },
-  walletText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
   },
   iconButton: {
     width: 44,
@@ -151,9 +111,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
-  },
-  filterIcon: {
-    fontSize: 20,
   },
   bellIcon: {
     fontSize: 20,

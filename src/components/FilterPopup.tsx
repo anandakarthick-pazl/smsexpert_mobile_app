@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,14 @@ import {
   TouchableOpacity,
   Modal,
   TouchableWithoutFeedback,
+  ScrollView,
+  Dimensions,
+  Animated,
 } from 'react-native';
 
-// Date Picker Modal Component
+const {height: SCREEN_HEIGHT} = Dimensions.get('window');
+
+// Date Picker Modal Component (Keep as popup for date selection)
 interface DatePickerModalProps {
   visible: boolean;
   onClose: () => void;
@@ -27,6 +32,14 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
   const [tempDate, setTempDate] = useState(selectedDate);
   const [currentMonth, setCurrentMonth] = useState(selectedDate.getMonth());
   const [currentYear, setCurrentYear] = useState(selectedDate.getFullYear());
+
+  useEffect(() => {
+    if (visible) {
+      setTempDate(selectedDate);
+      setCurrentMonth(selectedDate.getMonth());
+      setCurrentYear(selectedDate.getFullYear());
+    }
+  }, [selectedDate, visible]);
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -88,6 +101,8 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
       today.getFullYear() === currentYear
     );
   };
+
+  if (!visible) return null;
 
   return (
     <Modal
@@ -163,23 +178,166 @@ const DatePickerModal: React.FC<DatePickerModalProps> = ({
   );
 };
 
+// Quick Filter Option
+interface QuickFilterOption {
+  label: string;
+  icon: string;
+  value: string;
+  getRange: () => {startDate: Date; endDate: Date};
+}
+
 // Filter Popup Props
 interface FilterPopupProps {
   visible: boolean;
   onClose: () => void;
   onApply: (startDate: Date, endDate: Date) => void;
+  initialStartDate?: Date;
+  initialEndDate?: Date;
 }
 
 const FilterPopup: React.FC<FilterPopupProps> = ({
   visible,
   onClose,
   onApply,
+  initialStartDate,
+  initialEndDate,
 }) => {
-  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)));
-  const [endDate, setEndDate] = useState(new Date());
+  const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  const getDefaultStartDate = () => {
+    const date = new Date();
+    date.setDate(1); // First day of current month
+    return date;
+  };
+
+  const [startDate, setStartDate] = useState(initialStartDate || getDefaultStartDate());
+  const [endDate, setEndDate] = useState(initialEndDate || new Date());
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-  const [showMainPopup, setShowMainPopup] = useState(true);
+  const [showQuickSelectDropdown, setShowQuickSelectDropdown] = useState(false);
+  const [selectedQuickFilter, setSelectedQuickFilter] = useState<string>('this_month');
+
+  // Quick filter options
+  const quickFilters: QuickFilterOption[] = [
+    {
+      label: 'Today',
+      icon: '📅',
+      value: 'today',
+      getRange: () => {
+        const today = new Date();
+        return {startDate: today, endDate: today};
+      },
+    },
+    {
+      label: 'Yesterday',
+      icon: '⏪',
+      value: 'yesterday',
+      getRange: () => {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        return {startDate: yesterday, endDate: yesterday};
+      },
+    },
+    {
+      label: 'Last 7 Days',
+      icon: '📆',
+      value: 'last_7_days',
+      getRange: () => {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 6);
+        return {startDate: start, endDate: end};
+      },
+    },
+    {
+      label: 'Last 30 Days',
+      icon: '🗓️',
+      value: 'last_30_days',
+      getRange: () => {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 29);
+        return {startDate: start, endDate: end};
+      },
+    },
+    {
+      label: 'This Month',
+      icon: '📋',
+      value: 'this_month',
+      getRange: () => {
+        const end = new Date();
+        const start = new Date(end.getFullYear(), end.getMonth(), 1);
+        return {startDate: start, endDate: end};
+      },
+    },
+    {
+      label: 'Last Month',
+      icon: '📑',
+      value: 'last_month',
+      getRange: () => {
+        const end = new Date();
+        end.setDate(0); // Last day of previous month
+        const start = new Date(end.getFullYear(), end.getMonth(), 1);
+        return {startDate: start, endDate: end};
+      },
+    },
+    {
+      label: 'This Year',
+      icon: '📊',
+      value: 'this_year',
+      getRange: () => {
+        const end = new Date();
+        const start = new Date(end.getFullYear(), 0, 1);
+        return {startDate: start, endDate: end};
+      },
+    },
+    {
+      label: 'Custom Range',
+      icon: '✏️',
+      value: 'custom',
+      getRange: () => {
+        return {startDate: startDate, endDate: endDate};
+      },
+    },
+  ];
+
+  // Handle animation when visibility changes
+  useEffect(() => {
+    if (visible) {
+      setStartDate(initialStartDate || getDefaultStartDate());
+      setEndDate(initialEndDate || new Date());
+      setShowQuickSelectDropdown(false);
+      // Animate in
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 65,
+          friction: 11,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Animate out
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: SCREEN_HEIGHT,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible, initialStartDate, initialEndDate, fadeAnim, slideAnim]);
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-GB', {
@@ -189,131 +347,202 @@ const FilterPopup: React.FC<FilterPopupProps> = ({
     });
   };
 
+  const getSelectedFilterLabel = () => {
+    const filter = quickFilters.find(f => f.value === selectedQuickFilter);
+    return filter ? `${filter.icon} ${filter.label}` : 'Select Period';
+  };
+
+  const handleQuickFilterSelect = (filter: QuickFilterOption) => {
+    setSelectedQuickFilter(filter.value);
+    setShowQuickSelectDropdown(false);
+    
+    if (filter.value !== 'custom') {
+      const range = filter.getRange();
+      setStartDate(range.startDate);
+      setEndDate(range.endDate);
+    }
+  };
+
   const handleReset = () => {
-    setStartDate(new Date(new Date().setDate(new Date().getDate() - 30)));
+    setSelectedQuickFilter('this_month');
+    setStartDate(getDefaultStartDate());
     setEndDate(new Date());
   };
 
   const handleApply = () => {
     onApply(startDate, endDate);
-    onClose();
   };
 
   const handleStartDatePress = () => {
-    setShowMainPopup(false);
-    setTimeout(() => setShowStartPicker(true), 200);
+    setSelectedQuickFilter('custom');
+    setShowStartPicker(true);
   };
 
   const handleEndDatePress = () => {
-    setShowMainPopup(false);
-    setTimeout(() => setShowEndPicker(true), 200);
+    setSelectedQuickFilter('custom');
+    setShowEndPicker(true);
   };
 
   const handleStartDateSelect = (date: Date) => {
     setStartDate(date);
     setShowStartPicker(false);
-    setTimeout(() => setShowMainPopup(true), 200);
   };
 
   const handleEndDateSelect = (date: Date) => {
     setEndDate(date);
     setShowEndPicker(false);
-    setTimeout(() => setShowMainPopup(true), 200);
   };
-
-  const handleStartPickerClose = () => {
-    setShowStartPicker(false);
-    setTimeout(() => setShowMainPopup(true), 200);
-  };
-
-  const handleEndPickerClose = () => {
-    setShowEndPicker(false);
-    setTimeout(() => setShowMainPopup(true), 200);
-  };
-
-  if (!visible) return null;
 
   return (
     <>
-      {/* Main Filter Popup */}
+      {/* Bottom Sheet Modal */}
       <Modal
-        visible={visible && showMainPopup}
+        visible={visible}
         transparent={true}
-        animationType="fade"
-        onRequestClose={onClose}>
+        animationType="none"
+        onRequestClose={onClose}
+        statusBarTranslucent>
+        {/* Backdrop */}
         <TouchableWithoutFeedback onPress={onClose}>
-          <View style={filterStyles.overlay}>
-            <TouchableWithoutFeedback>
-              <View style={filterStyles.popup}>
-                {/* Header */}
-                <View style={filterStyles.header}>
-                  <View style={filterStyles.headerLeft}>
-                    <Text style={filterStyles.filterIcon}>📅</Text>
-                    <Text style={filterStyles.title}>Date Filter</Text>
-                  </View>
-                  <TouchableOpacity onPress={onClose}>
-                    <Text style={filterStyles.closeBtn}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* From Date */}
-                <View style={filterStyles.dateGroup}>
-                  <Text style={filterStyles.dateLabel}>From Date</Text>
-                  <TouchableOpacity
-                    style={filterStyles.dateButton}
-                    onPress={handleStartDatePress}
-                    activeOpacity={0.7}>
-                    <Text style={filterStyles.calendarIcon}>📆</Text>
-                    <Text style={filterStyles.dateText}>{formatDate(startDate)}</Text>
-                    <Text style={filterStyles.dropdownIcon}>▼</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* To Date */}
-                <View style={filterStyles.dateGroup}>
-                  <Text style={filterStyles.dateLabel}>To Date</Text>
-                  <TouchableOpacity
-                    style={filterStyles.dateButton}
-                    onPress={handleEndDatePress}
-                    activeOpacity={0.7}>
-                    <Text style={filterStyles.calendarIcon}>📆</Text>
-                    <Text style={filterStyles.dateText}>{formatDate(endDate)}</Text>
-                    <Text style={filterStyles.dropdownIcon}>▼</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Action Buttons */}
-                <View style={filterStyles.actions}>
-                  <TouchableOpacity
-                    style={filterStyles.resetBtn}
-                    onPress={handleReset}
-                    activeOpacity={0.7}>
-                    <Text style={filterStyles.resetBtnText}>↻ Reset</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={filterStyles.applyBtn}
-                    onPress={handleApply}
-                    activeOpacity={0.7}>
-                    <Text style={filterStyles.applyBtnText}>Apply Filter</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
+          <Animated.View style={[bottomSheetStyles.backdrop, {opacity: fadeAnim}]} />
         </TouchableWithoutFeedback>
+
+        {/* Bottom Sheet Content */}
+        <Animated.View
+          style={[
+            bottomSheetStyles.sheetContainer,
+            {transform: [{translateY: slideAnim}]},
+          ]}>
+          {/* Handle Bar */}
+          <View style={bottomSheetStyles.handleContainer}>
+            <View style={bottomSheetStyles.handle} />
+          </View>
+
+          {/* Header */}
+          <View style={bottomSheetStyles.header}>
+            <View style={bottomSheetStyles.headerLeft}>
+              <Text style={bottomSheetStyles.filterIcon}>📅</Text>
+              <Text style={bottomSheetStyles.title}>Date Filter</Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={bottomSheetStyles.closeButton}>
+              <Text style={bottomSheetStyles.closeBtn}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView 
+            style={bottomSheetStyles.content}
+            showsVerticalScrollIndicator={false}
+            bounces={false}>
+            
+            {/* Quick Select Dropdown */}
+            <View style={bottomSheetStyles.dropdownSection}>
+              <Text style={bottomSheetStyles.sectionLabel}>Quick Select</Text>
+              
+              {/* Dropdown Button */}
+              <TouchableOpacity
+                style={bottomSheetStyles.dropdownButton}
+                onPress={() => setShowQuickSelectDropdown(!showQuickSelectDropdown)}
+                activeOpacity={0.7}>
+                <Text style={bottomSheetStyles.dropdownButtonText}>
+                  {getSelectedFilterLabel()}
+                </Text>
+                <Text style={bottomSheetStyles.dropdownArrow}>
+                  {showQuickSelectDropdown ? '▲' : '▼'}
+                </Text>
+              </TouchableOpacity>
+
+              {/* Dropdown List */}
+              {showQuickSelectDropdown && (
+                <View style={bottomSheetStyles.dropdownList}>
+                  {quickFilters.map((filter, index) => (
+                    <TouchableOpacity
+                      key={filter.value}
+                      style={[
+                        bottomSheetStyles.dropdownItem,
+                        selectedQuickFilter === filter.value && bottomSheetStyles.dropdownItemSelected,
+                        index === quickFilters.length - 1 && bottomSheetStyles.dropdownItemLast,
+                      ]}
+                      onPress={() => handleQuickFilterSelect(filter)}
+                      activeOpacity={0.7}>
+                      <Text style={bottomSheetStyles.dropdownItemIcon}>{filter.icon}</Text>
+                      <Text style={[
+                        bottomSheetStyles.dropdownItemText,
+                        selectedQuickFilter === filter.value && bottomSheetStyles.dropdownItemTextSelected,
+                      ]}>
+                        {filter.label}
+                      </Text>
+                      {selectedQuickFilter === filter.value && (
+                        <Text style={bottomSheetStyles.dropdownCheckmark}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Date Range Selection - Always visible */}
+            <View style={bottomSheetStyles.dateRangeSection}>
+              <Text style={bottomSheetStyles.sectionLabel}>
+                {selectedQuickFilter === 'custom' ? 'Custom Date Range' : 'Selected Date Range'}
+              </Text>
+              
+              {/* From Date */}
+              <View style={bottomSheetStyles.dateGroup}>
+                <Text style={bottomSheetStyles.dateLabel}>From Date</Text>
+                <TouchableOpacity
+                  style={bottomSheetStyles.dateButton}
+                  onPress={handleStartDatePress}
+                  activeOpacity={0.7}>
+                  <Text style={bottomSheetStyles.calendarIcon}>📆</Text>
+                  <Text style={bottomSheetStyles.dateText}>{formatDate(startDate)}</Text>
+                  <Text style={bottomSheetStyles.dropdownIcon}>▼</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* To Date */}
+              <View style={bottomSheetStyles.dateGroup}>
+                <Text style={bottomSheetStyles.dateLabel}>To Date</Text>
+                <TouchableOpacity
+                  style={bottomSheetStyles.dateButton}
+                  onPress={handleEndDatePress}
+                  activeOpacity={0.7}>
+                  <Text style={bottomSheetStyles.calendarIcon}>📆</Text>
+                  <Text style={bottomSheetStyles.dateText}>{formatDate(endDate)}</Text>
+                  <Text style={bottomSheetStyles.dropdownIcon}>▼</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Action Buttons */}
+          <View style={bottomSheetStyles.actions}>
+            <TouchableOpacity
+              style={bottomSheetStyles.resetBtn}
+              onPress={handleReset}
+              activeOpacity={0.7}>
+              <Text style={bottomSheetStyles.resetBtnText}>↻ Reset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={bottomSheetStyles.applyBtn}
+              onPress={handleApply}
+              activeOpacity={0.7}>
+              <Text style={bottomSheetStyles.applyBtnText}>Apply Filter</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
       </Modal>
 
       {/* Date Picker Modals */}
       <DatePickerModal
         visible={showStartPicker}
-        onClose={handleStartPickerClose}
+        onClose={() => setShowStartPicker(false)}
         onSelectDate={handleStartDateSelect}
         selectedDate={startDate}
         title="Select Start Date"
       />
       <DatePickerModal
         visible={showEndPicker}
-        onClose={handleEndPickerClose}
+        onClose={() => setShowEndPicker(false)}
         onSelectDate={handleEndDateSelect}
         selectedDate={endDate}
         title="Select End Date"
@@ -322,32 +551,42 @@ const FilterPopup: React.FC<FilterPopupProps> = ({
   );
 };
 
-// Filter Popup Styles
-const filterStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
+// Bottom Sheet Styles
+const bottomSheetStyles = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
   },
-  popup: {
+  sheetContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    width: '100%',
-    maxWidth: 360,
-    padding: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: SCREEN_HEIGHT * 0.85,
     shadowColor: '#000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.25,
+    shadowOffset: {width: 0, height: -4},
+    shadowOpacity: 0.15,
     shadowRadius: 12,
-    elevation: 10,
+    elevation: 20,
+  },
+  handleContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#d1d5db',
+    borderRadius: 2,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
@@ -365,16 +604,103 @@ const filterStyles = StyleSheet.create({
     fontWeight: '700',
     color: '#293B50',
   },
-  closeBtn: {
-    fontSize: 22,
-    color: '#64748b',
-    padding: 4,
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  dateGroup: {
+  closeBtn: {
+    fontSize: 18,
+    color: '#64748b',
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  // Dropdown Section
+  dropdownSection: {
+    marginBottom: 24,
+  },
+  sectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8fafc',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  dropdownButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#293B50',
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  dropdownList: {
+    marginTop: 8,
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  dropdownItemLast: {
+    borderBottomWidth: 0,
+  },
+  dropdownItemSelected: {
+    backgroundColor: '#ea611810',
+  },
+  dropdownItemIcon: {
+    fontSize: 18,
+    marginRight: 12,
+  },
+  dropdownItemText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#293B50',
+  },
+  dropdownItemTextSelected: {
+    fontWeight: '600',
+    color: '#ea6118',
+  },
+  dropdownCheckmark: {
+    fontSize: 16,
+    color: '#ea6118',
+    fontWeight: '700',
+  },
+  // Date Range
+  dateRangeSection: {
     marginBottom: 20,
   },
+  dateGroup: {
+    marginBottom: 16,
+  },
   dateLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#64748b',
     marginBottom: 8,
@@ -402,17 +728,23 @@ const filterStyles = StyleSheet.create({
     fontWeight: '500',
   },
   dropdownIcon: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#64748b',
   },
+  // Actions
   actions: {
     flexDirection: 'row',
-    marginTop: 12,
-    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    paddingBottom: 30,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
   },
   resetBtn: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderRadius: 12,
     backgroundColor: '#f1f5f9',
     alignItems: 'center',
@@ -426,14 +758,14 @@ const filterStyles = StyleSheet.create({
   },
   applyBtn: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 16,
     borderRadius: 12,
     backgroundColor: '#ea6118',
     alignItems: 'center',
   },
   applyBtnText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#ffffff',
   },
 });

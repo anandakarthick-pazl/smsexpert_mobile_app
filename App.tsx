@@ -3,7 +3,7 @@
  */
 
 import React, {useState, useEffect, useCallback, useRef} from 'react';
-import {StatusBar, View, ActivityIndicator, StyleSheet, Text, Alert} from 'react-native';
+import {StatusBar, View, ActivityIndicator, StyleSheet, Text} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 
 import LoginScreen from './src/screens/LoginScreen';
@@ -66,7 +66,7 @@ type ScreenName =
   | 'CampaignAccounts'
   | 'CampaignAddAccount';
 
-// Create a global wallet balance context to share across components
+// Create a global wallet balance context to share across components (used by SidebarModal)
 export const WalletContext = React.createContext<{
   walletBalance: string;
   refreshWallet: () => Promise<void>;
@@ -84,7 +84,7 @@ function AppContent(): React.JSX.Element {
   const [walletBalance, setWalletBalance] = useState<string>('£0.00');
   
   // Get toast functions
-  const {showToast, showSuccess, showError} = useToast();
+  const {showToast, showSuccess} = useToast();
   
   // Store unsubscribe functions for FCM listeners
   const fcmUnsubscribeRef = useRef<(() => void)[]>([]);
@@ -423,47 +423,47 @@ function AppContent(): React.JSX.Element {
           />
         );
       case 'Dashboard':
-        return <DashboardScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <DashboardScreen navigation={navigation} />;
       case 'SMSWallet':
-        return <SMSWalletScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <SMSWalletScreen navigation={navigation} />;
       case 'SendSMS':
-        return <SendNewSMSScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <SendNewSMSScreen navigation={navigation} />;
       case 'ReceivedSMS':
-        return <ReceivedSMSScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <ReceivedSMSScreen navigation={navigation} />;
       case 'SentSMS':
-        return <SentSMSScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <SentSMSScreen navigation={navigation} />;
       case 'Keywords':
-        return <KeywordsScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <KeywordsScreen navigation={navigation} />;
       case 'Numbers':
-        return <NumbersScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <NumbersScreen navigation={navigation} />;
       case 'Groups':
-        return <GroupsScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <GroupsScreen navigation={navigation} />;
       case 'Profile':
-        return <ProfileScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <ProfileScreen navigation={navigation} />;
       case 'Contracts':
-        return <ContractsScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <ContractsScreen navigation={navigation} />;
       case 'Invoices':
-        return <InvoicesScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <InvoicesScreen navigation={navigation} />;
       case 'DeliveryReceipt':
-        return <DeliveryReceiptScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <DeliveryReceiptScreen navigation={navigation} />;
       case 'Blacklist':
-        return <BlacklistScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <BlacklistScreen navigation={navigation} />;
       case 'ChangePassword':
-        return <ChangePasswordScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <ChangePasswordScreen navigation={navigation} />;
       case 'CampaignHome':
-        return <CampaignDashboardScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <CampaignDashboardScreen navigation={navigation} />;
       case 'CampaignQuick':
-        return <QuickCampaignScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <QuickCampaignScreen navigation={navigation} />;
       case 'CampaignFile':
-        return <BulkCampaignScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <BulkCampaignScreen navigation={navigation} />;
       case 'CampaignHistory':
-        return <CampaignHistoryScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <CampaignHistoryScreen navigation={navigation} />;
       case 'CampaignBlacklist':
-        return <CampaignBlacklistScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <CampaignBlacklistScreen navigation={navigation} />;
       case 'CampaignAccounts':
-        return <CampaignAccountsScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <CampaignAccountsScreen navigation={navigation} />;
       case 'CampaignAddAccount':
-        return <CampaignAddAccountScreen navigation={navigation} walletBalance={walletBalance} />;
+        return <CampaignAddAccountScreen navigation={navigation} />;
       default:
         return (
           <PlaceholderScreen

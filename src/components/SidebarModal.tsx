@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef, useState, useContext} from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
+
+// Import WalletContext from App
+import {WalletContext} from '../../App';
 
 const {width} = Dimensions.get('window');
 const SIDEBAR_WIDTH = 250;
@@ -73,6 +76,9 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [isCampaignMode, setIsCampaignMode] = useState(false);
+
+  // Get wallet balance from context
+  const {walletBalance} = useContext(WalletContext);
 
   // Get current menu items based on mode
   const menuItems = isCampaignMode ? campaignMenuItems : dashboardMenuItems;
@@ -206,6 +212,19 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
             <View style={styles.userInfo}>
               <Text style={styles.companyName}>{userName}</Text>
               <Text style={styles.userName}>{userType}</Text>
+            </View>
+          </View>
+
+          {/* Wallet Balance Section */}
+          <View style={styles.walletSection}>
+            <View style={styles.walletCard}>
+              <View style={styles.walletIconContainer}>
+                <Text style={styles.walletIcon}>💳</Text>
+              </View>
+              <View style={styles.walletInfo}>
+                <Text style={styles.walletLabel}>Wallet Balance</Text>
+                <Text style={styles.walletAmount}>{walletBalance}</Text>
+              </View>
             </View>
           </View>
 
@@ -388,8 +407,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   userAvatar: {
     width: 40,
@@ -420,6 +437,48 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.7)',
+  },
+  // Wallet Section
+  walletSection: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  walletCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(22, 163, 74, 0.15)',
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(22, 163, 74, 0.3)',
+  },
+  walletIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: 'rgba(22, 163, 74, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  walletIcon: {
+    fontSize: 18,
+  },
+  walletInfo: {
+    flex: 1,
+  },
+  walletLabel: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 2,
+  },
+  walletAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#22c55e',
   },
   switchButton: {
     flexDirection: 'row',
