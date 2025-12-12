@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,20 @@ import {
   StatusBar,
   Alert,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
+  TextInput,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
+import {
+  getReceivedSmsPageData,
+  getReceivedMessages,
+  getMessageDetails,
+  FilterOption,
+  ReceivedMessage,
+  MessageDetails,
+} from '../services/receivedSmsService';
 
 interface ReceivedSMSScreenProps {
   navigation: {
@@ -20,64 +31,48 @@ interface ReceivedSMSScreenProps {
   };
 }
 
-interface SMSMessage {
-  id: number;
-  from: string;
-  message: string;
-  receivedDate: string;
-  sentTo: string;
-  autoResponse: boolean;
-}
-
 const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
+  // Page Data State
+  const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
+  
+  // Messages State
+  const [messages, setMessages] = useState<ReceivedMessage[]>([]);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  
+  // Loading States
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
   // Filter Modal State
   const [showFilterModal, setShowFilterModal] = useState(false);
   
   // Filter State
-  const [selectedKeyword, setSelectedKeyword] = useState('All Incoming');
+  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [searchText, setSearchText] = useState('');
   
   // Date filters
-  const [startDate, setStartDate] = useState({day: 1, month: 1, year: 2025});
-  const [endDate, setEndDate] = useState({day: 8, month: 12, year: 2025});
+  const [startDate, setStartDate] = useState({day: 1, month: 1, year: new Date().getFullYear()});
+  const [endDate, setEndDate] = useState({day: new Date().getDate(), month: new Date().getMonth() + 1, year: new Date().getFullYear()});
   
   // Calendar modal states
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
-  const [tempStartDate, setTempStartDate] = useState({day: 1, month: 1, year: 2025});
-  const [tempEndDate, setTempEndDate] = useState({day: 8, month: 12, year: 2025});
+  const [tempStartDate, setTempStartDate] = useState(startDate);
+  const [tempEndDate, setTempEndDate] = useState(endDate);
   const [selectingDate, setSelectingDate] = useState<'start' | 'end'>('start');
   
   // Dropdown states
   const [showKeywordDropdown, setShowKeywordDropdown] = useState(false);
   
-  // All messages data
-  const allMessages: SMSMessage[] = [
-    {id: 1, from: 'MYBRANDNAME', message: 'testing VN Forwarder', receivedDate: 'Wed 3rd Dec 25 09:07:32', sentTo: '447418318903', autoResponse: false},
-    {id: 2, from: 'MYBRANDNAME', message: '3 VN test', receivedDate: 'Tue 2nd Dec 25 12:41:28', sentTo: '447418318903', autoResponse: false},
-    {id: 3, from: '447740673853', message: 'Stop', receivedDate: 'Thu 30th Oct 25 09:34:47', sentTo: '447418318070', autoResponse: false},
-    {id: 4, from: '447740673853', message: 'Reply to master', receivedDate: 'Thu 30th Oct 25 09:33:34', sentTo: '447418318070', autoResponse: false},
-    {id: 5, from: '447407311128', message: 'Hi da\nCall me once wakeup', receivedDate: 'Thu 27th Nov 25 06:47:41', sentTo: '447418318903', autoResponse: false},
-    {id: 6, from: '447748154719', message: '228359', receivedDate: 'Thu 27th Nov 25 06:14:27', sentTo: '447418318903', autoResponse: false},
-  ];
-
-  // Results state
-  const [displayedMessages, setDisplayedMessages] = useState<SMSMessage[]>(allMessages);
-  const [totalMessages] = useState(6);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  
   // Details Modal state
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedMessage, setSelectedMessage] = useState<SMSMessage | null>(null);
-
-  const keywordOptions = [
-    {value: 'All Incoming', label: 'All Incoming Messages'},
-    {value: '83', label: '* (447418318903)'},
-    {value: '-1', label: 'STOPs (60300/80809)'},
-    {value: '-2', label: 'STOPs (447786201088)'},
-  ];
+  const [selectedMessage, setSelectedMessage] = useState<MessageDetails | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -85,6 +80,111 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
   ];
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Load initial data
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    setIsLoading(true);
+    try {
+      // Load page data (filter options)
+      const pageDataResult = await getReceivedSmsPageData();
+      if (pageDataResult.success && pageDataResult.data) {
+        setFilterOptions(pageDataResult.data.filter_options);
+      }
+
+      // Load messages
+      await loadMessages(1, true);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+      Alert.alert('Error', 'Failed to load data. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadMessages = async (page: number = 1, reset: boolean = false) => {
+    try {
+      const result = await getReceivedMessages({
+        filter: selectedFilter,
+        startDate: formatDateForApi(startDate),
+        endDate: formatDateForApi(endDate),
+        page,
+        perPage: 20,
+        search: searchText,
+      });
+
+      if (result.success && result.data) {
+        if (reset) {
+          setMessages(result.data.messages);
+        } else {
+          setMessages(prev => [...prev, ...result.data!.messages]);
+        }
+        setTotalRecords(result.data.pagination.total_records);
+        setCurrentPage(result.data.pagination.current_page);
+        setTotalPages(result.data.pagination.total_pages);
+        setHasMore(result.data.pagination.has_more);
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await loadMessages(1, true);
+    setIsRefreshing(false);
+  };
+
+  const loadMoreMessages = async () => {
+    if (isLoadingMore || !hasMore) return;
+    
+    setIsLoadingMore(true);
+    await loadMessages(currentPage + 1, false);
+    setIsLoadingMore(false);
+  };
+
+  const handleSearch = async () => {
+    setShowFilterModal(false);
+    setIsLoading(true);
+    setMessages([]);
+    await loadMessages(1, true);
+    setIsLoading(false);
+  };
+
+  const handleResetFilters = () => {
+    setSelectedFilter('all');
+    setSearchText('');
+    const today = new Date();
+    setStartDate({day: 1, month: 1, year: today.getFullYear()});
+    setEndDate({day: today.getDate(), month: today.getMonth() + 1, year: today.getFullYear()});
+  };
+
+  const handleViewDetails = async (msg: ReceivedMessage) => {
+    setIsLoadingDetails(true);
+    setShowDetailsModal(true);
+    
+    try {
+      const result = await getMessageDetails(msg.id);
+      if (result.success && result.data) {
+        setSelectedMessage(result.data);
+      } else {
+        Alert.alert('Error', 'Failed to load message details');
+        setShowDetailsModal(false);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load message details');
+      setShowDetailsModal(false);
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
+  const formatDateForApi = (date: {day: number; month: number; year: number}): string => {
+    return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
+  };
 
   const getDaysInMonth = (month: number, year: number) => {
     return new Date(year, month + 1, 0).getDate();
@@ -99,51 +199,16 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
   };
 
   const handleNotificationPress = () => {
-    Alert.alert('Notifications', 'You have 3 new notifications');
-  };
-
-  const handleSearch = () => {
-    setIsLoading(true);
-    setShowFilterModal(false);
-    setHasSearched(true);
-    
-    setTimeout(() => {
-      setDisplayedMessages(allMessages);
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  const handleResetFilters = () => {
-    setSelectedKeyword('All Incoming');
-    setStartDate({day: 1, month: 1, year: 2025});
-    setEndDate({day: 8, month: 12, year: 2025});
-  };
-
-  const handleViewDetails = (msg: SMSMessage) => {
-    setSelectedMessage(msg);
-    setShowDetailsModal(true);
+    Alert.alert('Notifications', 'You have new notifications');
   };
 
   const handleScroll = (event: any) => {
     const {layoutMeasurement, contentOffset, contentSize} = event.nativeEvent;
     const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
     
-    if (isCloseToBottom && !isLoadingMore && displayedMessages.length < totalMessages) {
+    if (isCloseToBottom && !isLoadingMore && hasMore) {
       loadMoreMessages();
     }
-  };
-
-  const loadMoreMessages = () => {
-    if (isLoadingMore) return;
-    
-    setIsLoadingMore(true);
-    
-    setTimeout(() => {
-      const currentCount = displayedMessages.length;
-      const newMessages = allMessages.slice(currentCount, currentCount + 25);
-      setDisplayedMessages([...displayedMessages, ...newMessages]);
-      setIsLoadingMore(false);
-    }, 500);
   };
 
   const openCalendar = () => {
@@ -249,7 +314,7 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
   };
 
   const renderDropdown = (
-    options: {value: string; label: string}[],
+    options: FilterOption[],
     selectedValue: string,
     onSelect: (value: string) => void,
     onClose: () => void,
@@ -258,21 +323,21 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
       <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
         {options.map(option => (
           <TouchableOpacity
-            key={option.value}
+            key={option.id}
             style={[
               styles.dropdownItem,
-              selectedValue === option.value && styles.dropdownItemActive,
+              selectedValue === option.id && styles.dropdownItemActive,
             ]}
             onPress={() => {
-              onSelect(option.value);
+              onSelect(option.id);
               onClose();
             }}>
             <Text
               style={[
                 styles.dropdownItemText,
-                selectedValue === option.value && styles.dropdownItemTextActive,
+                selectedValue === option.id && styles.dropdownItemTextActive,
               ]}>
-              {option.label}
+              {option.display_name}
             </Text>
           </TouchableOpacity>
         ))}
@@ -280,117 +345,130 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
     </View>
   );
 
+  const getSelectedFilterLabel = (): string => {
+    const filter = filterOptions.find(f => f.id === selectedFilter);
+    return filter?.display_name || 'All Incoming Messages';
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#293B50" />
 
       <Header
-        title="Received SMS"
-        onMenuPress={() => navigation.openDrawer()}
-        onNotificationPress={handleNotificationPress}
-        notificationCount={3}
-        walletBalance="£6859"
+      title="Received SMS"
+      onMenuPress={() => navigation.openDrawer()}
+      onNotificationPress={handleNotificationPress}
+      notificationCount={3}
       />
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        onScroll={handleScroll}
-        scrollEventThrottle={400}>
-
-        {/* Filter Button Card */}
-        <TouchableOpacity
-          style={styles.filterButtonCard}
-          onPress={() => setShowFilterModal(true)}
-          activeOpacity={0.7}>
-          <View style={styles.filterButtonLeft}>
-            <View style={styles.filterIconContainer}>
-              <Text style={styles.filterIcon}>🔍</Text>
-            </View>
-            <View>
-              <Text style={styles.filterButtonTitle}>Search & Filter Options</Text>
-              <Text style={styles.filterButtonSubtitle}>Tap to filter received messages</Text>
-            </View>
-          </View>
-          <View style={styles.filterButtonRight}>
-            <Text style={styles.filterArrow}>›</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Results Section */}
-        <View style={styles.resultsCard}>
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingIcon}>⏳</Text>
-              <Text style={styles.loadingText}>Searching messages...</Text>
-            </View>
-          ) : displayedMessages.length === 0 ? (
-            <View style={styles.noDataContainer}>
-              <Text style={styles.noDataIcon}>📥</Text>
-              <Text style={styles.noDataTitle}>No Messages Found</Text>
-              <Text style={styles.noDataText}>
-                No received SMS messages match your search criteria. Try adjusting your filters.
-              </Text>
-            </View>
-          ) : (
-            <>
-              {/* Record Info Header */}
-              <View style={styles.recordInfoHeader}>
-                <View style={styles.recordInfoRow}>
-                  <Text style={styles.recordInfoLabel}>Total Records:</Text>
-                  <Text style={styles.recordInfoValue}>{totalMessages}</Text>
-                </View>
-                <View style={styles.recordInfoRow}>
-                  <Text style={styles.recordInfoLabel}>Now Showing:</Text>
-                  <Text style={styles.recordInfoValue}>{displayedMessages.length}</Text>
-                </View>
-              </View>
-
-              {/* Messages List */}
-              <View style={styles.messagesList}>
-                {displayedMessages.map(msg => (
-                  <TouchableOpacity
-                    key={msg.id}
-                    style={styles.messageItem}
-                    onPress={() => handleViewDetails(msg)}>
-                    <View style={styles.messageRow}>
-                      <View style={styles.messageLeft}>
-                        <Text style={styles.messageFromLabel}>From:</Text>
-                        <Text style={styles.messageFrom}>{msg.from}</Text>
-                      </View>
-                      <View style={[styles.statusBadge, msg.autoResponse ? styles.statusSent : styles.statusNoSent]}>
-                        <Text style={styles.statusText}>{msg.autoResponse ? 'Replied' : 'No Reply'}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.messagePreview} numberOfLines={1}>
-                      {msg.message}
-                    </Text>
-                    <Text style={styles.messageDate}>
-                      📅 {msg.receivedDate}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Loading More Indicator */}
-              {isLoadingMore && (
-                <View style={styles.loadingMoreContainer}>
-                  <Text style={styles.loadingMoreText}>Loading more...</Text>
-                </View>
-              )}
-
-              {/* End of List Indicator */}
-              {displayedMessages.length >= totalMessages && (
-                <View style={styles.endOfListContainer}>
-                  <Text style={styles.endOfListText}>— End of messages —</Text>
-                </View>
-              )}
-            </>
-          )}
+      {isLoading ? (
+        <View style={styles.loadingFullScreen}>
+          <ActivityIndicator size="large" color="#ea6118" />
+          <Text style={styles.loadingText}>Loading received messages...</Text>
         </View>
+      ) : (
+        <ScrollView
+          style={styles.content}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          onScroll={handleScroll}
+          scrollEventThrottle={400}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#ea6118']} />
+          }>
 
-      </ScrollView>
+          {/* Filter Button Card */}
+          <TouchableOpacity
+            style={styles.filterButtonCard}
+            onPress={() => setShowFilterModal(true)}
+            activeOpacity={0.7}>
+            <View style={styles.filterButtonLeft}>
+              <View style={styles.filterIconContainer}>
+                <Text style={styles.filterIcon}>🔍</Text>
+              </View>
+              <View>
+                <Text style={styles.filterButtonTitle}>Search & Filter Options</Text>
+                <Text style={styles.filterButtonSubtitle}>{getSelectedFilterLabel()}</Text>
+              </View>
+            </View>
+            <View style={styles.filterButtonRight}>
+              <Text style={styles.filterArrow}>›</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Results Section */}
+          <View style={styles.resultsCard}>
+            {messages.length === 0 ? (
+              <View style={styles.noDataContainer}>
+                <Text style={styles.noDataIcon}>📥</Text>
+                <Text style={styles.noDataTitle}>No Messages Found</Text>
+                <Text style={styles.noDataText}>
+                  No received SMS messages match your search criteria. Try adjusting your filters.
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* Record Info Header */}
+                <View style={styles.recordInfoHeader}>
+                  <View style={styles.recordInfoRow}>
+                    <Text style={styles.recordInfoLabel}>Total Records:</Text>
+                    <Text style={styles.recordInfoValue}>{totalRecords}</Text>
+                  </View>
+                  <View style={styles.recordInfoRow}>
+                    <Text style={styles.recordInfoLabel}>Now Showing:</Text>
+                    <Text style={styles.recordInfoValue}>{messages.length}</Text>
+                  </View>
+                </View>
+
+                {/* Messages List */}
+                <View style={styles.messagesList}>
+                  {messages.map(msg => (
+                    <TouchableOpacity
+                      key={msg.id}
+                      style={styles.messageItem}
+                      onPress={() => handleViewDetails(msg)}>
+                      <View style={styles.messageRow}>
+                        <View style={styles.messageLeft}>
+                          <Text style={styles.messageFromLabel}>From:</Text>
+                          <Text style={styles.messageFrom}>{msg.sender}</Text>
+                        </View>
+                        <View style={styles.statusBadge}>
+                          <Text style={styles.statusText}>📩</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.messagePreview} numberOfLines={1}>
+                        {msg.message_preview}
+                      </Text>
+                      <Text style={styles.messageDate}>
+                        📅 {msg.received_at}
+                      </Text>
+                      <Text style={styles.messageTo}>
+                        To: {msg.received_to}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Loading More Indicator */}
+                {isLoadingMore && (
+                  <View style={styles.loadingMoreContainer}>
+                    <ActivityIndicator size="small" color="#ea6118" />
+                    <Text style={styles.loadingMoreText}>Loading more...</Text>
+                  </View>
+                )}
+
+                {/* End of List Indicator */}
+                {!hasMore && messages.length > 0 && (
+                  <View style={styles.endOfListContainer}>
+                    <Text style={styles.endOfListText}>— End of messages —</Text>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+
+        </ScrollView>
+      )}
 
       {/* Filter Modal */}
       <Modal
@@ -415,24 +493,39 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
             
             {/* Modal Body */}
             <ScrollView style={styles.filterModalBody} showsVerticalScrollIndicator={false}>
-              {/* Keyword & Virtual Number Filter */}
+              {/* Search Input */}
               <View style={styles.filterSection}>
                 <View style={styles.filterTitleRow}>
                   <Text style={styles.filterTitleIcon}>🔎</Text>
+                  <Text style={styles.filterTitle}>Search</Text>
+                </View>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search by sender or message..."
+                  placeholderTextColor="#94a3b8"
+                  value={searchText}
+                  onChangeText={setSearchText}
+                />
+              </View>
+
+              {/* Keyword & Virtual Number Filter */}
+              <View style={styles.filterSection}>
+                <View style={styles.filterTitleRow}>
+                  <Text style={styles.filterTitleIcon}>📱</Text>
                   <Text style={styles.filterTitle}>Keyword & Virtual Number</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.dropdown}
                   onPress={() => setShowKeywordDropdown(!showKeywordDropdown)}>
                   <Text style={styles.dropdownText}>
-                    {keywordOptions.find(k => k.value === selectedKeyword)?.label || 'Select...'}
+                    {getSelectedFilterLabel()}
                   </Text>
                   <Text style={styles.dropdownArrow}>▼</Text>
                 </TouchableOpacity>
                 {showKeywordDropdown && renderDropdown(
-                  keywordOptions,
-                  selectedKeyword,
-                  setSelectedKeyword,
+                  filterOptions,
+                  selectedFilter,
+                  setSelectedFilter,
                   () => setShowKeywordDropdown(false)
                 )}
               </View>
@@ -444,7 +537,6 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
                   <Text style={styles.filterTitle}>Date Range</Text>
                 </View>
 
-                {/* Start and End Date in same row */}
                 <TouchableOpacity
                   style={styles.dateRangeButton}
                   onPress={openCalendar}>
@@ -591,14 +683,19 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
             </View>
             
             <ScrollView style={styles.detailsModalBody}>
-              {selectedMessage && (
+              {isLoadingDetails ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#ea6118" />
+                  <Text style={styles.loadingText}>Loading details...</Text>
+                </View>
+              ) : selectedMessage && (
                 <>
                   <View style={styles.detailRow}>
                     <View style={styles.detailLabelRow}>
                       <Text style={styles.detailIcon}>📅</Text>
                       <Text style={styles.detailLabel}>Date Received:</Text>
                     </View>
-                    <Text style={styles.detailValue}>{selectedMessage.receivedDate}</Text>
+                    <Text style={styles.detailValue}>{selectedMessage.received_at_formatted}</Text>
                   </View>
                   
                   <View style={styles.detailRow}>
@@ -606,7 +703,7 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
                       <Text style={styles.detailIcon}>👤</Text>
                       <Text style={styles.detailLabel}>Sender:</Text>
                     </View>
-                    <Text style={styles.detailValue}>{selectedMessage.from}</Text>
+                    <Text style={styles.detailValue}>{selectedMessage.sender}</Text>
                   </View>
                   
                   <View style={styles.detailRow}>
@@ -614,8 +711,18 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
                       <Text style={styles.detailIcon}>📱</Text>
                       <Text style={styles.detailLabel}>Sent to Number:</Text>
                     </View>
-                    <Text style={styles.detailValue}>{selectedMessage.sentTo}</Text>
+                    <Text style={styles.detailValue}>{selectedMessage.received_to}</Text>
                   </View>
+
+                  {selectedMessage.keyword && (
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailLabelRow}>
+                        <Text style={styles.detailIcon}>🏷️</Text>
+                        <Text style={styles.detailLabel}>Keyword:</Text>
+                      </View>
+                      <Text style={styles.detailValue}>{selectedMessage.keyword}</Text>
+                    </View>
+                  )}
                   
                   <View style={styles.detailRow}>
                     <View style={styles.detailLabelRow}>
@@ -634,7 +741,9 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
                     </View>
                     <View style={[styles.messageBox, styles.messageBoxMuted]}>
                       <Text style={styles.messageBoxTextMuted}>
-                        (No auto-response SMS was sent)
+                        {selectedMessage.auto_response.sent 
+                          ? selectedMessage.auto_response.message 
+                          : '(No auto-response SMS was sent)'}
                       </Text>
                     </View>
                   </View>
@@ -672,11 +781,29 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 30,
   },
+  loadingFullScreen: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 12,
+  },
+
   // Filter Button Card
   filterButtonCard: {
     backgroundColor: '#ffffff',
     borderRadius: 14,
-    marginBottom: 16,
+    marginBottom: 12,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -736,20 +863,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 3,
-  },
-  // Loading State
-  loadingContainer: {
-    padding: 60,
-    alignItems: 'center',
-  },
-  loadingIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#64748b',
-    fontWeight: '500',
   },
   // No Data State
   noDataContainer: {
@@ -827,21 +940,13 @@ const styles = StyleSheet.create({
     color: '#293B50',
   },
   statusBadge: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-  },
-  statusSent: {
-    backgroundColor: '#dcfce7',
-  },
-  statusNoSent: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: '#f0fdf4',
   },
   statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    color: '#293B50',
+    fontSize: 14,
   },
   messagePreview: {
     fontSize: 14,
@@ -852,15 +957,23 @@ const styles = StyleSheet.create({
   messageDate: {
     fontSize: 12,
     color: '#94a3b8',
+    marginBottom: 2,
+  },
+  messageTo: {
+    fontSize: 11,
+    color: '#94a3b8',
   },
   // Loading More
   loadingMoreContainer: {
     padding: 16,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   loadingMoreText: {
     fontSize: 14,
     color: '#64748b',
+    marginLeft: 8,
   },
   // End of List
   endOfListContainer: {
@@ -947,6 +1060,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#293B50',
   },
+  // Search Input
+  searchInput: {
+    backgroundColor: '#ffffff',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#293B50',
+  },
   // Dropdown
   dropdown: {
     flexDirection: 'row',
@@ -974,11 +1098,11 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     borderRadius: 10,
     marginTop: 8,
-    maxHeight: 140,
+    maxHeight: 200,
     overflow: 'hidden',
   },
   dropdownScroll: {
-    maxHeight: 140,
+    maxHeight: 200,
   },
   dropdownItem: {
     paddingHorizontal: 14,

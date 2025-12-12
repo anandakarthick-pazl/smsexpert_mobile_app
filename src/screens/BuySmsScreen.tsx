@@ -14,7 +14,9 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
 import {
   getBuySmsData,
@@ -133,18 +135,20 @@ const BuySmsScreen: React.FC<Props> = ({navigation}) => {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
         <Header title="Buy SMS" onMenuPress={onMenuPress} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
           <Text style={styles.loadingText}>Loading...</Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
       <Header title="Buy SMS" onMenuPress={onMenuPress} />
       
       <ScrollView
@@ -251,19 +255,22 @@ const BuySmsScreen: React.FC<Props> = ({navigation}) => {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#293B50',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   loadingText: {
     marginTop: 12,
@@ -273,6 +280,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   balanceCard: {
     backgroundColor: '#293b50',

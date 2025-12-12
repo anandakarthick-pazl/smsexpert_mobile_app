@@ -88,8 +88,12 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   const userType = isCampaignMode ? 'Campaign User' : 'Dashboard User';
 
   useEffect(() => {
-    console.log('SidebarModal visible changed:', visible);
+    console.log('SidebarModal useEffect - visible:', visible);
     if (visible) {
+      // Reset animation values when opening
+      slideAnim.setValue(-SIDEBAR_WIDTH);
+      fadeAnim.setValue(0);
+      
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: 0,
@@ -102,21 +106,8 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
           useNativeDriver: true,
         }),
       ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, {
-          toValue: -SIDEBAR_WIDTH,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
     }
-  }, [visible, slideAnim, fadeAnim]);
+  }, [visible]);
 
   const handleNavigate = (route: string) => {
     console.log('Navigating to:', route);
@@ -129,7 +120,20 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
 
   const handleClose = () => {
     console.log('Closing sidebar');
-    onClose();
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: -SIDEBAR_WIDTH,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      onClose();
+    });
   };
 
   const handleLogoutAllDevices = () => {
@@ -165,6 +169,8 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
       ]
     );
   };
+
+  console.log('SidebarModal render - visible:', visible);
 
   return (
     <Modal
@@ -439,7 +445,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.7)',
   },
-  // Wallet Section
   walletSection: {
     paddingHorizontal: 12,
     paddingBottom: 8,

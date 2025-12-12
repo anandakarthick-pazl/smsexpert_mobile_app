@@ -1,120 +1,79 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
-  StatusBar,
-  Alert,
+  RefreshControl,
+  ActivityIndicator,
   Modal,
+  ScrollView,
   TextInput,
+  StatusBar,
 } from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Header from '../components/Header';
+import {
+  getSentSmsPageData,
+  getSentSmsMessages,
+  getSentMessageDetails,
+  SentMessage,
+  SentMessageDetails,
+  SentSmsFilters,
+  FilterOption,
+  PaginationInfo,
+  getStatusColor,
+} from '../services/sentSmsService';
 
-interface SentSMSScreenProps {
-  navigation: {
-    navigate: (screen: string) => void;
-    openDrawer: () => void;
-    goBack: () => void;
-  };
+interface Props {
+  navigation: any;
 }
 
-interface SMSMessage {
-  id: number;
-  to: string;
-  message: string;
-  sentDate: string;
-  status: 'Delivered' | 'Pending' | 'Failed';
-}
+const SentSMSScreen: React.FC<Props> = ({ navigation }) => {
+  // State
+  const [messages, setMessages] = useState<SentMessage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [pagination, setPagination] = useState<PaginationInfo | null>(null);
 
-const SentSMSScreen: React.FC<SentSMSScreenProps> = ({navigation}) => {
-  // Filter Modal State
+  // Filter options from API
+  const [routeOptions, setRouteOptions] = useState<FilterOption[]>([]);
+  const [deliveryOptions, setDeliveryOptions] = useState<FilterOption[]>([]);
+
+  // Date state
+  const [startDate, setStartDate] = useState({day: new Date().getDate(), month: new Date().getMonth() + 1, year: new Date().getFullYear()});
+  const [endDate, setEndDate] = useState({day: new Date().getDate(), month: new Date().getMonth() + 1, year: new Date().getFullYear()});
+
+  // Active filters
+  const [filters, setFilters] = useState<SentSmsFilters>({
+    route: 'all',
+    delivery_status: 'all',
+    mobile: '',
+    start_date: new Date().toISOString().split('T')[0],
+    end_date: new Date().toISOString().split('T')[0],
+  });
+
+  // Filter modal
   const [showFilterModal, setShowFilterModal] = useState(false);
-  
-  // SMS Source Checkboxes
-  const [chkSystem, setChkSystem] = useState(true);
-  const [chkControlPanel, setChkControlPanel] = useState(true);
-  const [chkApi, setChkApi] = useState(true);
-  const [chkEmail, setChkEmail] = useState(true);
-  const [chkMobyclip, setChkMobyclip] = useState(true);
-  
-  // Advanced Filters
-  const [selectedRoute, setSelectedRoute] = useState('all');
-  const [selectedDeliveryStatus, setSelectedDeliveryStatus] = useState('all');
-  const [mobileNumber, setMobileNumber] = useState('');
-  const [logMatch, setLogMatch] = useState('');
-  
-  // Date filters
-  const [startDate, setStartDate] = useState({day: 1, month: 1, year: 2025});
-  const [endDate, setEndDate] = useState({day: 8, month: 12, year: 2025});
-  
+  const [tempFilters, setTempFilters] = useState<SentSmsFilters>(filters);
+
   // Calendar modal states
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
-  const [tempStartDate, setTempStartDate] = useState({day: 1, month: 1, year: 2025});
-  const [tempEndDate, setTempEndDate] = useState({day: 8, month: 12, year: 2025});
+  const [tempStartDate, setTempStartDate] = useState(startDate);
+  const [tempEndDate, setTempEndDate] = useState(endDate);
   const [selectingDate, setSelectingDate] = useState<'start' | 'end'>('start');
-  
-  // Dropdown states
-  const [showRouteDropdown, setShowRouteDropdown] = useState(false);
-  const [showDeliveryDropdown, setShowDeliveryDropdown] = useState(false);
-  
-  // All messages data
-  const allMessages: SMSMessage[] = [
-    {id: 1, to: '918903894309', message: 'test', sentDate: 'Thu 4th Dec 25 09:00:45', status: 'Delivered'},
-    {id: 2, to: '917094514970', message: 'test', sentDate: 'Thu 4th Dec 25 09:00:37', status: 'Delivered'},
-    {id: 3, to: '917094514970', message: 'test', sentDate: 'Thu 4th Dec 25 08:53:58', status: 'Delivered'},
-    {id: 4, to: '917094514970', message: 'test sms cost', sentDate: 'N/A', status: 'Pending'},
-    {id: 5, to: '917094514970', message: 'test sms cost', sentDate: 'N/A', status: 'Pending'},
-    {id: 6, to: '917094514970', message: 'test sms today', sentDate: 'Wed 3rd Dec 25 08:21:12', status: 'Delivered'},
-    {id: 7, to: '918903894309', message: 'test', sentDate: 'Tue 2nd Dec 25 13:00:42', status: 'Delivered'},
-    {id: 8, to: '917094514970', message: 'test', sentDate: 'Tue 2nd Dec 25 12:10:15', status: 'Delivered'},
-    {id: 9, to: '917094514970', message: 'test sms DLR', sentDate: 'Tue 2nd Dec 25 12:10:13', status: 'Delivered'},
-    {id: 10, to: '447418318070', message: 'test sms', sentDate: 'N/A', status: 'Pending'},
-    {id: 11, to: '919003096885', message: 'hi test sms', sentDate: 'N/A', status: 'Pending'},
-    {id: 12, to: '919003096885', message: 'hi test sms', sentDate: 'N/A', status: 'Pending'},
-    {id: 13, to: '917094514970', message: 'sms test', sentDate: 'N/A', status: 'Pending'},
-    {id: 14, to: '917094514970', message: "I'm available today.", sentDate: 'N/A', status: 'Pending'},
-    {id: 15, to: '917094514970', message: "I'm available today.", sentDate: 'Mon 1st Dec 25 13:23:47', status: 'Delivered'},
-    {id: 16, to: '919025603512', message: "I'm available today.", sentDate: 'Mon 1st Dec 25 13:23:48', status: 'Delivered'},
-    {id: 17, to: '917094514970', message: "I'm available today.", sentDate: 'Mon 1st Dec 25 09:33:59', status: 'Delivered'},
-    {id: 18, to: '917094514970', message: 'testsms', sentDate: 'N/A', status: 'Pending'},
-    {id: 19, to: '447740673853', message: 'test sms', sentDate: 'Wed 26th Nov 25 13:38:46', status: 'Delivered'},
-    {id: 20, to: '917094514970', message: 'test message', sentDate: 'Wed 26th Nov 25 13:37:51', status: 'Delivered'},
-    {id: 21, to: '917094514970', message: 'Hello there', sentDate: 'Tue 25th Nov 25 10:15:30', status: 'Delivered'},
-    {id: 22, to: '918903894309', message: 'Meeting reminder', sentDate: 'Tue 25th Nov 25 09:00:00', status: 'Delivered'},
-    {id: 23, to: '917094514970', message: 'Test notification', sentDate: 'Mon 24th Nov 25 14:22:11', status: 'Failed'},
-    {id: 24, to: '919003096885', message: 'Order confirmed', sentDate: 'Mon 24th Nov 25 11:45:33', status: 'Delivered'},
-    {id: 25, to: '917094514970', message: 'Welcome message', sentDate: 'Sun 23rd Nov 25 08:30:00', status: 'Delivered'},
-  ];
 
-  // Results state
-  const [displayedMessages, setDisplayedMessages] = useState<SMSMessage[]>(allMessages.slice(0, 25));
-  const [totalMessages] = useState(75);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  
-  // Details Modal state
+  // Message details modal
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedMessage, setSelectedMessage] = useState<SMSMessage | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<SentMessageDetails | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
-  const routeOptions = [
-    {value: 'all', label: 'Standard and Premium Routes'},
-    {value: 'standard', label: 'Standard Routes only'},
-    {value: 'premium', label: 'Premium Routes only'},
-  ];
-
-  const deliveryStatusOptions = [
-    {value: 'all', label: 'All Messages'},
-    {value: 'delivered', label: 'Delivered Messages only'},
-    {value: 'failed', label: 'Failed Messages only'},
-    {value: 'pending', label: 'Pending Messages only'},
-    {value: 'lost_notification', label: 'Lost Notification'},
-  ];
+  // Error state
+  const [error, setError] = useState<string | null>(null);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -123,74 +82,156 @@ const SentSMSScreen: React.FC<SentSMSScreenProps> = ({navigation}) => {
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  const getDaysInMonth = (month: number, year: number) => {
-    return new Date(year, month + 1, 0).getDate();
+  // Load initial data
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Load filter options
+      const pageData = await getSentSmsPageData();
+      if (pageData.success) {
+        setRouteOptions(pageData.data.route_options);
+        setDeliveryOptions(pageData.data.delivery_options);
+
+        // Set default dates
+        setFilters(prev => ({
+          ...prev,
+          start_date: pageData.data.default_start_date,
+          end_date: pageData.data.default_end_date,
+        }));
+        setTempFilters(prev => ({
+          ...prev,
+          start_date: pageData.data.default_start_date,
+          end_date: pageData.data.default_end_date,
+        }));
+
+        // Parse dates for calendar
+        if (pageData.data.default_start_date) {
+          const parts = pageData.data.default_start_date.split('-');
+          if (parts.length === 3) {
+            setStartDate({year: parseInt(parts[0]), month: parseInt(parts[1]), day: parseInt(parts[2])});
+            setTempStartDate({year: parseInt(parts[0]), month: parseInt(parts[1]), day: parseInt(parts[2])});
+          }
+        }
+        if (pageData.data.default_end_date) {
+          const parts = pageData.data.default_end_date.split('-');
+          if (parts.length === 3) {
+            setEndDate({year: parseInt(parts[0]), month: parseInt(parts[1]), day: parseInt(parts[2])});
+            setTempEndDate({year: parseInt(parts[0]), month: parseInt(parts[1]), day: parseInt(parts[2])});
+          }
+        }
+      }
+
+      // Load messages
+      await loadMessages(1);
+    } catch (err: any) {
+      console.error('Error loading initial data:', err);
+      setError(err.message || 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getFirstDayOfMonth = (month: number, year: number) => {
-    return new Date(year, month, 1).getDay();
+  const loadMessages = async (page: number = 1, append: boolean = false) => {
+    try {
+      if (page === 1) {
+        setRefreshing(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const response = await getSentSmsMessages(filters, page, 20);
+
+      if (response.success) {
+        if (append) {
+          setMessages(prev => [...prev, ...response.data.messages]);
+        } else {
+          setMessages(response.data.messages);
+        }
+        setPagination(response.data.pagination);
+      }
+    } catch (err: any) {
+      console.error('Error loading messages:', err);
+      setError(err.message || 'Failed to load messages');
+    } finally {
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleRefresh = useCallback(() => {
+    loadMessages(1);
+  }, [filters]);
+
+  const handleLoadMore = useCallback(() => {
+    if (pagination && pagination.has_more && !loadingMore) {
+      loadMessages(pagination.current_page + 1, true);
+    }
+  }, [pagination, loadingMore, filters]);
+
+  const formatDateForApi = (date: {day: number; month: number; year: number}): string => {
+    return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
   };
 
   const formatDateDisplay = (date: {day: number; month: number; year: number}): string => {
     return `${String(date.day).padStart(2, '0')}/${String(date.month).padStart(2, '0')}/${date.year}`;
   };
 
-  const handleNotificationPress = () => {
-    Alert.alert('Notifications', 'You have 3 new notifications');
-  };
-
-  const handleSearch = () => {
-    setIsLoading(true);
+  const handleApplyFilters = () => {
+    // Update filters with calendar dates
+    const updatedFilters = {
+      ...tempFilters,
+      start_date: formatDateForApi(startDate),
+      end_date: formatDateForApi(endDate),
+    };
+    setFilters(updatedFilters);
     setShowFilterModal(false);
-    setHasSearched(true);
-    
+    // Reload messages with new filters
     setTimeout(() => {
-      setDisplayedMessages(allMessages.slice(0, 25));
-      setIsLoading(false);
-    }, 1000);
+      loadMessages(1);
+    }, 100);
   };
 
   const handleResetFilters = () => {
-    setChkSystem(true);
-    setChkControlPanel(true);
-    setChkApi(true);
-    setChkEmail(true);
-    setChkMobyclip(true);
-    setSelectedRoute('all');
-    setSelectedDeliveryStatus('all');
-    setMobileNumber('');
-    setLogMatch('');
-    setStartDate({day: 1, month: 1, year: 2025});
-    setEndDate({day: 8, month: 12, year: 2025});
+    const today = new Date();
+    const resetDate = {day: today.getDate(), month: today.getMonth() + 1, year: today.getFullYear()};
+    setStartDate(resetDate);
+    setEndDate(resetDate);
+    setTempStartDate(resetDate);
+    setTempEndDate(resetDate);
+    setTempFilters({
+      route: 'all',
+      delivery_status: 'all',
+      mobile: '',
+      start_date: formatDateForApi(resetDate),
+      end_date: formatDateForApi(resetDate),
+    });
   };
 
-  const handleViewDetails = (msg: SMSMessage) => {
-    setSelectedMessage(msg);
-    setShowDetailsModal(true);
-  };
+  const handleMessagePress = async (message: SentMessage) => {
+    try {
+      setLoadingDetails(true);
+      setShowDetailsModal(true);
 
-  const handleScroll = (event: any) => {
-    const {layoutMeasurement, contentOffset, contentSize} = event.nativeEvent;
-    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 50;
-    
-    if (isCloseToBottom && !isLoadingMore && displayedMessages.length < totalMessages) {
-      loadMoreMessages();
+      const response = await getSentMessageDetails(message.table_name, message.id);
+
+      if (response.success && response.data) {
+        setSelectedMessage(response.data);
+      }
+    } catch (err: any) {
+      console.error('Error loading message details:', err);
+      setSelectedMessage(null);
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
-  const loadMoreMessages = () => {
-    if (isLoadingMore) return;
-    
-    setIsLoadingMore(true);
-    
-    setTimeout(() => {
-      const currentCount = displayedMessages.length;
-      const newMessages = allMessages.slice(currentCount, currentCount + 25);
-      setDisplayedMessages([...displayedMessages, ...newMessages]);
-      setIsLoadingMore(false);
-    }, 500);
-  };
-
+  // Calendar functions
   const openCalendar = () => {
     setTempStartDate(startDate);
     setTempEndDate(endDate);
@@ -218,6 +259,14 @@ const SentSMSScreen: React.FC<SentSMSScreenProps> = ({navigation}) => {
     }
   };
 
+  const getDaysInMonth = (month: number, year: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (month: number, year: number) => {
+    return new Date(year, month, 1).getDay();
+  };
+
   const selectDate = (day: number) => {
     const selectedDate = {day, month: calendarMonth + 1, year: calendarYear};
     
@@ -225,12 +274,10 @@ const SentSMSScreen: React.FC<SentSMSScreenProps> = ({navigation}) => {
       setTempStartDate(selectedDate);
       setSelectingDate('end');
     } else {
-      // Check if end date is before start date
       const startTimestamp = new Date(tempStartDate.year, tempStartDate.month - 1, tempStartDate.day).getTime();
       const endTimestamp = new Date(selectedDate.year, selectedDate.month - 1, selectedDate.day).getTime();
       
       if (endTimestamp < startTimestamp) {
-        // Swap dates if end is before start
         setTempEndDate(tempStartDate);
         setTempStartDate(selectedDate);
       } else {
@@ -245,7 +292,7 @@ const SentSMSScreen: React.FC<SentSMSScreenProps> = ({navigation}) => {
     setShowCalendarModal(false);
   };
 
-  const isDateSelected = (day: number, type: 'start' | 'end' | 'between' | 'none') => {
+  const isDateSelected = (day: number) => {
     const currentDate = new Date(calendarYear, calendarMonth, day).getTime();
     const start = new Date(tempStartDate.year, tempStartDate.month - 1, tempStartDate.day).getTime();
     const end = new Date(tempEndDate.year, tempEndDate.month - 1, tempEndDate.day).getTime();
@@ -261,14 +308,12 @@ const SentSMSScreen: React.FC<SentSMSScreenProps> = ({navigation}) => {
     const firstDay = getFirstDayOfMonth(calendarMonth, calendarYear);
     const days = [];
     
-    // Empty cells before first day
     for (let i = 0; i < firstDay; i++) {
       days.push(<View key={`empty-${i}`} style={styles.calendarDay} />);
     }
     
-    // Days of month
     for (let day = 1; day <= daysInMonth; day++) {
-      const dateType = isDateSelected(day, 'none');
+      const dateType = isDateSelected(day);
       const isStart = dateType === 'start';
       const isEnd = dateType === 'end';
       const isBetween = dateType === 'between';
@@ -297,567 +342,466 @@ const SentSMSScreen: React.FC<SentSMSScreenProps> = ({navigation}) => {
     return days;
   };
 
-  const getStatusStyle = (status: string) => {
-    switch (status) {
-      case 'Delivered':
-        return styles.statusDelivered;
-      case 'Pending':
-        return styles.statusPending;
-      case 'Failed':
-        return styles.statusFailed;
+  const getStatusEmoji = (statusCode: string): string => {
+    switch (statusCode) {
+      case 'delivered':
+        return '✅';
+      case 'pending':
+        return '⏳';
+      case 'failed':
+        return '❌';
+      case 'scheduled':
+        return '📅';
       default:
-        return styles.statusPending;
+        return '❓';
     }
   };
 
-  const renderDropdown = (
-    options: {value: string; label: string}[],
-    selectedValue: string,
-    onSelect: (value: string) => void,
-    onClose: () => void,
-  ) => (
-    <View style={styles.dropdownList}>
-      <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
-        {options.map(option => (
-          <TouchableOpacity
-            key={option.value}
-            style={[
-              styles.dropdownItem,
-              selectedValue === option.value && styles.dropdownItemActive,
-            ]}
-            onPress={() => {
-              onSelect(option.value);
-              onClose();
-            }}>
-            <Text
-              style={[
-                styles.dropdownItemText,
-                selectedValue === option.value && styles.dropdownItemTextActive,
-              ]}>
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
+  const renderMessageItem = ({ item }: { item: SentMessage }) => {
+    const statusColor = getStatusColor(item.status_code);
+    const statusEmoji = getStatusEmoji(item.status_code);
 
-  const CheckboxItem = ({
-    checked,
-    onToggle,
-    icon,
-    label,
-  }: {
-    checked: boolean;
-    onToggle: () => void;
-    icon: string;
-    label: string;
-  }) => (
-    <TouchableOpacity style={styles.checkboxItem} onPress={onToggle}>
-      <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked && <Text style={styles.checkboxCheck}>✓</Text>}
-      </View>
-      <Text style={styles.checkboxIcon}>{icon}</Text>
-      <Text style={styles.checkboxLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
-
-      <Header
-        title="Sent SMS"
-        onMenuPress={() => navigation.openDrawer()}
-        onNotificationPress={handleNotificationPress}
-        notificationCount={3}
-        walletBalance="£6859"
-      />
-
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        onScroll={handleScroll}
-        scrollEventThrottle={400}>
-
-        {/* Filter Button Card */}
-        <TouchableOpacity
-          style={styles.filterButtonCard}
-          onPress={() => setShowFilterModal(true)}
-          activeOpacity={0.7}>
-          <View style={styles.filterButtonLeft}>
-            <View style={styles.filterIconContainer}>
-              <Text style={styles.filterIcon}>🔍</Text>
-            </View>
-            <View>
-              <Text style={styles.filterButtonTitle}>Search & Filter Options</Text>
-              <Text style={styles.filterButtonSubtitle}>Tap to filter sent messages</Text>
-            </View>
+    return (
+      <TouchableOpacity
+        style={styles.messageCard}
+        onPress={() => handleMessagePress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.messageHeader}>
+          <View style={styles.mobileContainer}>
+            <Text style={styles.mobileIcon}>📱</Text>
+            <Text style={styles.mobileNumber}>{item.mobile}</Text>
           </View>
-          <View style={styles.filterButtonRight}>
-            <Text style={styles.filterArrow}>›</Text>
+          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+            <Text style={styles.statusEmoji}>{statusEmoji}</Text>
+            <Text style={styles.statusText}>{item.status}</Text>
           </View>
-        </TouchableOpacity>
+        </View>
 
-        {/* Results Section */}
-        <View style={styles.resultsCard}>
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <Text style={styles.loadingIcon}>⏳</Text>
-              <Text style={styles.loadingText}>Searching messages...</Text>
-            </View>
-          ) : displayedMessages.length === 0 ? (
-            <View style={styles.noDataContainer}>
-              <Text style={styles.noDataIcon}>📤</Text>
-              <Text style={styles.noDataTitle}>No Messages Found</Text>
-              <Text style={styles.noDataText}>
-                No sent SMS messages match your search criteria. Try adjusting your filters.
-              </Text>
-            </View>
-          ) : (
-            <>
-              {/* Record Info Header */}
-              <View style={styles.recordInfoHeader}>
-                <View style={styles.recordInfoRow}>
-                  <Text style={styles.recordInfoLabel}>Total Records:</Text>
-                  <Text style={styles.recordInfoValue}>{totalMessages}</Text>
-                </View>
-                <View style={styles.recordInfoRow}>
-                  <Text style={styles.recordInfoLabel}>Now Showing:</Text>
-                  <Text style={styles.recordInfoValue}>{displayedMessages.length}</Text>
-                </View>
-              </View>
+        <Text style={styles.messagePreview} numberOfLines={2}>
+          {item.message_preview}
+        </Text>
 
-              {/* Messages List */}
-              <View style={styles.messagesList}>
-                {displayedMessages.map(msg => (
+        <View style={styles.messageFooter}>
+          <View style={styles.timeContainer}>
+            <Text style={styles.footerIcon}>🕐</Text>
+            <Text style={styles.timeText}>{item.sent_time}</Text>
+          </View>
+          <View style={styles.senderContainer}>
+            <Text style={styles.footerIcon}>👤</Text>
+            <Text style={styles.senderText}>{item.originator}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderFilterModal = () => (
+    <Modal
+      visible={showFilterModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowFilterModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.filterModalContent}>
+          <View style={styles.filterModalHeader}>
+            <Text style={styles.filterModalTitle}>🔍 Search & Filter</Text>
+            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
+              <Text style={styles.closeIcon}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.filterScrollView}>
+            {/* Routes Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>🔀 Routes</Text>
+              <View style={styles.filterOptions}>
+                {routeOptions.map((option) => (
                   <TouchableOpacity
-                    key={msg.id}
-                    style={styles.messageItem}
-                    onPress={() => handleViewDetails(msg)}>
-                    <View style={styles.messageRow}>
-                      <View style={styles.messageLeft}>
-                        <Text style={styles.messageToLabel}>To:</Text>
-                        <Text style={styles.messageTo}>{msg.to}</Text>
-                      </View>
-                      <View style={[styles.statusBadge, getStatusStyle(msg.status)]}>
-                        <Text style={styles.statusText}>{msg.status}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.messagePreview} numberOfLines={1}>
-                      {msg.message}
-                    </Text>
-                    <Text style={styles.messageDate}>
-                      📅 {msg.sentDate}
+                    key={option.value}
+                    style={[
+                      styles.filterOption,
+                      tempFilters.route === option.value && styles.filterOptionActive,
+                    ]}
+                    onPress={() => setTempFilters(prev => ({ ...prev, route: option.value }))}
+                  >
+                    <Text
+                      style={[
+                        styles.filterOptionText,
+                        tempFilters.route === option.value && styles.filterOptionTextActive,
+                      ]}
+                    >
+                      {option.label}
                     </Text>
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
 
-              {/* Loading More Indicator */}
-              {isLoadingMore && (
-                <View style={styles.loadingMoreContainer}>
-                  <Text style={styles.loadingMoreText}>Loading more...</Text>
-                </View>
-              )}
+            {/* Delivery Status Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>📊 Delivery Status</Text>
+              <View style={styles.filterOptions}>
+                {deliveryOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.filterOption,
+                      tempFilters.delivery_status === option.value && styles.filterOptionActive,
+                    ]}
+                    onPress={() => setTempFilters(prev => ({ ...prev, delivery_status: option.value }))}
+                  >
+                    <Text
+                      style={[
+                        styles.filterOptionText,
+                        tempFilters.delivery_status === option.value && styles.filterOptionTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
 
-              {/* End of List Indicator */}
-              {displayedMessages.length >= totalMessages && (
-                <View style={styles.endOfListContainer}>
-                  <Text style={styles.endOfListText}>— End of messages —</Text>
+            {/* Mobile Number Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>📞 Mobile Number</Text>
+              <TextInput
+                style={styles.filterInput}
+                value={tempFilters.mobile}
+                onChangeText={(text) => setTempFilters(prev => ({ ...prev, mobile: text }))}
+                placeholder="Enter mobile number..."
+                keyboardType="phone-pad"
+                placeholderTextColor="#94a3b8"
+              />
+            </View>
+
+            {/* Date Range Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterLabel}>📅 Date Range</Text>
+              <TouchableOpacity
+                style={styles.dateRangeButton}
+                onPress={openCalendar}>
+                <View style={styles.dateRangeItem}>
+                  <Text style={styles.dateRangeLabel}>Start</Text>
+                  <Text style={styles.dateRangeValue}>{formatDateDisplay(startDate)}</Text>
                 </View>
-              )}
-            </>
+                <View style={styles.dateRangeSeparator}>
+                  <Text style={styles.dateRangeSeparatorText}>→</Text>
+                </View>
+                <View style={styles.dateRangeItem}>
+                  <Text style={styles.dateRangeLabel}>End</Text>
+                  <Text style={styles.dateRangeValue}>{formatDateDisplay(endDate)}</Text>
+                </View>
+                <View style={styles.dateRangeIcon}>
+                  <Text style={styles.dateRangeIconText}>📅</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+
+          <View style={styles.filterActions}>
+            <TouchableOpacity style={styles.resetButton} onPress={handleResetFilters}>
+              <Text style={styles.resetButtonText}>Reset</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.applyButton} onPress={handleApplyFilters}>
+              <Text style={styles.applyButtonText}>🔍 Search</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderCalendarModal = () => (
+    <Modal
+      visible={showCalendarModal}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={() => setShowCalendarModal(false)}>
+      <View style={styles.calendarModalOverlay}>
+        <View style={styles.calendarModalContainer}>
+          {/* Calendar Header */}
+          <View style={styles.calendarModalHeader}>
+            <Text style={styles.calendarModalTitle}>📅 Select Date Range</Text>
+            <TouchableOpacity
+              style={styles.calendarCloseBtn}
+              onPress={() => setShowCalendarModal(false)}>
+              <Text style={styles.calendarCloseBtnText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Selected Date Display */}
+          <View style={styles.selectedDatesRow}>
+            <TouchableOpacity
+              style={[
+                styles.selectedDateBox,
+                selectingDate === 'start' && styles.selectedDateBoxActive,
+              ]}
+              onPress={() => setSelectingDate('start')}>
+              <Text style={styles.selectedDateLabel}>Start Date</Text>
+              <Text style={styles.selectedDateValue}>{formatDateDisplay(tempStartDate)}</Text>
+            </TouchableOpacity>
+            <Text style={styles.selectedDateArrow}>→</Text>
+            <TouchableOpacity
+              style={[
+                styles.selectedDateBox,
+                selectingDate === 'end' && styles.selectedDateBoxActive,
+              ]}
+              onPress={() => setSelectingDate('end')}>
+              <Text style={styles.selectedDateLabel}>End Date</Text>
+              <Text style={styles.selectedDateValue}>{formatDateDisplay(tempEndDate)}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Month/Year Navigation */}
+          <View style={styles.calendarNav}>
+            <TouchableOpacity style={styles.calendarNavBtn} onPress={goToPrevMonth}>
+              <Text style={styles.calendarNavBtnText}>‹</Text>
+            </TouchableOpacity>
+            <Text style={styles.calendarNavTitle}>
+              {monthNames[calendarMonth]} {calendarYear}
+            </Text>
+            <TouchableOpacity style={styles.calendarNavBtn} onPress={goToNextMonth}>
+              <Text style={styles.calendarNavBtnText}>›</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Day Names */}
+          <View style={styles.calendarDayNames}>
+            {dayNames.map(day => (
+              <View key={day} style={styles.calendarDayName}>
+                <Text style={styles.calendarDayNameText}>{day}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Calendar Grid */}
+          <View style={styles.calendarGrid}>
+            {renderCalendar()}
+          </View>
+
+          {/* Calendar Footer */}
+          <View style={styles.calendarModalFooter}>
+            <TouchableOpacity
+              style={styles.cancelDateButton}
+              onPress={() => setShowCalendarModal(false)}>
+              <Text style={styles.cancelDateButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.confirmDateButton}
+              onPress={confirmDateSelection}>
+              <Text style={styles.confirmDateButtonText}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  const renderDetailsModal = () => (
+    <Modal
+      visible={showDetailsModal}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowDetailsModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.detailsModalContent}>
+          <View style={styles.detailsModalHeader}>
+            <Text style={styles.detailsModalTitle}>📋 Message Details</Text>
+            <TouchableOpacity onPress={() => setShowDetailsModal(false)}>
+              <Text style={styles.closeIconWhite}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loadingDetails ? (
+            <View style={styles.detailsLoading}>
+              <ActivityIndicator size="large" color="#ea6118" />
+              <Text style={styles.loadingText}>Loading details...</Text>
+            </View>
+          ) : selectedMessage ? (
+            <ScrollView style={styles.detailsScrollView}>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>🕐 Date Submitted</Text>
+                <Text style={styles.detailValue}>{selectedMessage.date_submitted}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>📤 Send at Time</Text>
+                <Text style={styles.detailValue}>{selectedMessage.send_at_time}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>✅ Delivery Time</Text>
+                <Text style={styles.detailValue}>{selectedMessage.delivery_time}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>👤 Sender</Text>
+                <Text style={styles.detailValue}>{selectedMessage.sender}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>📱 Sent To</Text>
+                <Text style={styles.detailValue}>{selectedMessage.sent_to}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>🏢 Sent By</Text>
+                <Text style={styles.detailValue}>{selectedMessage.sent_by}</Text>
+              </View>
+
+              <View style={styles.messageSection}>
+                <Text style={styles.detailLabel}>💬 Message Content</Text>
+                <View style={styles.messageBox}>
+                  <Text style={styles.messageText}>{selectedMessage.message}</Text>
+                </View>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>💰 Cost to You</Text>
+                <Text style={styles.detailValue}>{selectedMessage.cost_to_you}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>📊 Delivery Status</Text>
+                <Text style={[styles.detailValue, styles.statusValue]}>
+                  {selectedMessage.delivery_status}
+                </Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>ℹ️ Message Status</Text>
+                <Text style={styles.detailValue}>{selectedMessage.message_status}</Text>
+              </View>
+            </ScrollView>
+          ) : (
+            <View style={styles.detailsLoading}>
+              <Text style={styles.errorText}>Failed to load message details</Text>
+            </View>
           )}
+
+          <TouchableOpacity
+            style={styles.closeDetailsButton}
+            onPress={() => setShowDetailsModal(false)}
+          >
+            <Text style={styles.closeButtonText}>Close</Text>
+          </TouchableOpacity>
         </View>
+      </View>
+    </Modal>
+  );
 
-      </ScrollView>
+  const renderEmptyList = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyIcon}>📭</Text>
+      <Text style={styles.emptyTitle}>No Messages Found</Text>
+      <Text style={styles.emptyText}>
+        No sent SMS messages match your search criteria. Try adjusting your filters or date range.
+      </Text>
+    </View>
+  );
 
-      {/* Filter Modal */}
-      <Modal
-        visible={showFilterModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowFilterModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.filterModalContainer}>
-            {/* Modal Header */}
-            <View style={styles.filterModalHeader}>
-              <View style={styles.filterModalTitleRow}>
-                <Text style={styles.filterModalIcon}>🔍</Text>
-                <Text style={styles.filterModalTitle}>Search & Filter Options</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setShowFilterModal(false)}>
-                <Text style={styles.modalCloseBtnText}>✕</Text>
-              </TouchableOpacity>
+  const renderFooter = () => {
+    if (!loadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#ea6118" />
+      </View>
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+        <Header title="Sent SMS" onMenuPress={() => navigation.openDrawer()} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ea6118" />
+          <Text style={styles.loadingText}>Loading sent messages...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+        <Header title="Sent SMS" onMenuPress={() => navigation.openDrawer()} />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorIcon}>⚠️</Text>
+          <Text style={styles.errorTitle}>Error</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={loadInitialData}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <Header title="Sent SMS" onMenuPress={() => navigation.openDrawer()} />
+
+      <View style={styles.content}>
+        {/* Filter Button */}
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => {
+            setTempFilters(filters);
+            setShowFilterModal(true);
+          }}
+        >
+          <Text style={styles.filterButtonIcon}>🔍</Text>
+          <Text style={styles.filterButtonText}>Search & Filter</Text>
+          {(filters.route !== 'all' ||
+            filters.delivery_status !== 'all' ||
+            filters.mobile) && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>•</Text>
             </View>
-            
-            {/* Modal Body */}
-            <ScrollView style={styles.filterModalBody} showsVerticalScrollIndicator={false}>
-              {/* SMS Source Filter */}
-              <View style={styles.filterSection}>
-                <View style={styles.filterTitleRow}>
-                  <Text style={styles.filterTitleIcon}>📤</Text>
-                  <Text style={styles.filterTitle}>Show SMS Sent By</Text>
-                </View>
-                <View style={styles.checkboxGroup}>
-                  <CheckboxItem
-                    checked={chkSystem}
-                    onToggle={() => setChkSystem(!chkSystem)}
-                    icon="🤖"
-                    label="The SMS Expert System"
-                  />
-                  <CheckboxItem
-                    checked={chkControlPanel}
-                    onToggle={() => setChkControlPanel(!chkControlPanel)}
-                    icon="📊"
-                    label="The Control Panel"
-                  />
-                  <CheckboxItem
-                    checked={chkApi}
-                    onToggle={() => setChkApi(!chkApi)}
-                    icon="🔌"
-                    label="The SMS APIs"
-                  />
-                  <CheckboxItem
-                    checked={chkEmail}
-                    onToggle={() => setChkEmail(!chkEmail)}
-                    icon="📧"
-                    label="Email XML→SMS Gateway"
-                  />
-                  <CheckboxItem
-                    checked={chkMobyclip}
-                    onToggle={() => setChkMobyclip(!chkMobyclip)}
-                    icon="📱"
-                    label="Mobyclip"
-                  />
-                </View>
-              </View>
+          )}
+        </TouchableOpacity>
 
-              {/* Advanced Filters */}
-              <View style={styles.filterSection}>
-                <View style={styles.filterTitleRow}>
-                  <Text style={styles.filterTitleIcon}>⚙️</Text>
-                  <Text style={styles.filterTitle}>Advanced Filters</Text>
-                </View>
-
-                {/* Routes */}
-                <View style={styles.formGroup}>
-                  <View style={styles.formLabelRow}>
-                    <Text style={styles.formLabelIcon}>🛤️</Text>
-                    <Text style={styles.formLabel}>Routes</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.dropdown}
-                    onPress={() => setShowRouteDropdown(!showRouteDropdown)}>
-                    <Text style={styles.dropdownText}>
-                      {routeOptions.find(r => r.value === selectedRoute)?.label || 'Select...'}
-                    </Text>
-                    <Text style={styles.dropdownArrow}>▼</Text>
-                  </TouchableOpacity>
-                  {showRouteDropdown && renderDropdown(
-                    routeOptions,
-                    selectedRoute,
-                    setSelectedRoute,
-                    () => setShowRouteDropdown(false)
-                  )}
-                </View>
-
-                {/* Delivery Status */}
-                <View style={styles.formGroup}>
-                  <View style={styles.formLabelRow}>
-                    <Text style={styles.formLabelIcon}>ℹ️</Text>
-                    <Text style={styles.formLabel}>Delivery Status</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.dropdown}
-                    onPress={() => setShowDeliveryDropdown(!showDeliveryDropdown)}>
-                    <Text style={styles.dropdownText}>
-                      {deliveryStatusOptions.find(d => d.value === selectedDeliveryStatus)?.label || 'Select...'}
-                    </Text>
-                    <Text style={styles.dropdownArrow}>▼</Text>
-                  </TouchableOpacity>
-                  {showDeliveryDropdown && renderDropdown(
-                    deliveryStatusOptions,
-                    selectedDeliveryStatus,
-                    setSelectedDeliveryStatus,
-                    () => setShowDeliveryDropdown(false)
-                  )}
-                </View>
-
-                {/* Mobile Number */}
-                <View style={styles.formGroup}>
-                  <View style={styles.formLabelRow}>
-                    <Text style={styles.formLabelIcon}>📱</Text>
-                    <Text style={styles.formLabel}>Sent To (Mobile Number)</Text>
-                  </View>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Enter mobile number..."
-                    placeholderTextColor="#94a3b8"
-                    value={mobileNumber}
-                    onChangeText={setMobileNumber}
-                    keyboardType="phone-pad"
-                  />
-                </View>
-
-                {/* Log Match */}
-                <View style={styles.formGroup}>
-                  <View style={styles.formLabelRow}>
-                    <Text style={styles.formLabelIcon}>🔎</Text>
-                    <Text style={styles.formLabel}>Match Message Log</Text>
-                  </View>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Enter log text to match..."
-                    placeholderTextColor="#94a3b8"
-                    value={logMatch}
-                    onChangeText={setLogMatch}
-                  />
-                </View>
-              </View>
-
-              {/* Date Range Section */}
-              <View style={styles.filterSection}>
-                <View style={styles.filterTitleRow}>
-                  <Text style={styles.filterTitleIcon}>📅</Text>
-                  <Text style={styles.filterTitle}>Date Range</Text>
-                </View>
-
-                {/* Start and End Date in same row */}
-                <TouchableOpacity
-                  style={styles.dateRangeButton}
-                  onPress={openCalendar}>
-                  <View style={styles.dateRangeItem}>
-                    <Text style={styles.dateRangeLabel}>Start</Text>
-                    <Text style={styles.dateRangeValue}>{formatDateDisplay(startDate)}</Text>
-                  </View>
-                  <View style={styles.dateRangeSeparator}>
-                    <Text style={styles.dateRangeSeparatorText}>→</Text>
-                  </View>
-                  <View style={styles.dateRangeItem}>
-                    <Text style={styles.dateRangeLabel}>End</Text>
-                    <Text style={styles.dateRangeValue}>{formatDateDisplay(endDate)}</Text>
-                  </View>
-                  <View style={styles.dateRangeIcon}>
-                    <Text style={styles.dateRangeIconText}>📅</Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-
-            {/* Modal Footer */}
-            <View style={styles.filterModalFooter}>
-              <TouchableOpacity
-                style={styles.resetButton}
-                onPress={handleResetFilters}>
-                <Text style={styles.resetButtonIcon}>🔄</Text>
-                <Text style={styles.resetButtonText}>Reset</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.applyFilterButton}
-                onPress={handleSearch}>
-                <Text style={styles.applyFilterButtonIcon}>✓</Text>
-                <Text style={styles.applyFilterButtonText}>Apply Filter</Text>
-              </TouchableOpacity>
-            </View>
+        {/* Results count */}
+        {pagination && (
+          <View style={styles.resultsInfo}>
+            <Text style={styles.resultsText}>
+              {pagination.total_records.toLocaleString()} message(s) found
+            </Text>
           </View>
-        </View>
-      </Modal>
+        )}
 
-      {/* Calendar Modal */}
-      <Modal
-        visible={showCalendarModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowCalendarModal(false)}>
-        <View style={styles.calendarModalOverlay}>
-          <View style={styles.calendarModalContainer}>
-            {/* Calendar Header */}
-            <View style={styles.calendarModalHeader}>
-              <Text style={styles.calendarModalTitle}>📅 Select Date Range</Text>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setShowCalendarModal(false)}>
-                <Text style={styles.modalCloseBtnText}>✕</Text>
-              </TouchableOpacity>
-            </View>
+        {/* Messages List */}
+        <FlatList
+          data={messages}
+          renderItem={renderMessageItem}
+          keyExtractor={(item) => `${item.table_name}-${item.id}`}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={['#ea6118']}
+              tintColor="#ea6118"
+            />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListEmptyComponent={renderEmptyList}
+          ListFooterComponent={renderFooter}
+        />
+      </View>
 
-            {/* Selected Date Display */}
-            <View style={styles.selectedDatesRow}>
-              <TouchableOpacity
-                style={[
-                  styles.selectedDateBox,
-                  selectingDate === 'start' && styles.selectedDateBoxActive,
-                ]}
-                onPress={() => setSelectingDate('start')}>
-                <Text style={styles.selectedDateLabel}>Start Date</Text>
-                <Text style={styles.selectedDateValue}>{formatDateDisplay(tempStartDate)}</Text>
-              </TouchableOpacity>
-              <Text style={styles.selectedDateArrow}>→</Text>
-              <TouchableOpacity
-                style={[
-                  styles.selectedDateBox,
-                  selectingDate === 'end' && styles.selectedDateBoxActive,
-                ]}
-                onPress={() => setSelectingDate('end')}>
-                <Text style={styles.selectedDateLabel}>End Date</Text>
-                <Text style={styles.selectedDateValue}>{formatDateDisplay(tempEndDate)}</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Month/Year Navigation */}
-            <View style={styles.calendarNav}>
-              <TouchableOpacity style={styles.calendarNavBtn} onPress={goToPrevMonth}>
-                <Text style={styles.calendarNavBtnText}>‹</Text>
-              </TouchableOpacity>
-              <Text style={styles.calendarNavTitle}>
-                {monthNames[calendarMonth]} {calendarYear}
-              </Text>
-              <TouchableOpacity style={styles.calendarNavBtn} onPress={goToNextMonth}>
-                <Text style={styles.calendarNavBtnText}>›</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Day Names */}
-            <View style={styles.calendarDayNames}>
-              {dayNames.map(day => (
-                <View key={day} style={styles.calendarDayName}>
-                  <Text style={styles.calendarDayNameText}>{day}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Calendar Grid */}
-            <View style={styles.calendarGrid}>
-              {renderCalendar()}
-            </View>
-
-            {/* Calendar Footer */}
-            <View style={styles.calendarModalFooter}>
-              <TouchableOpacity
-                style={styles.cancelDateButton}
-                onPress={() => setShowCalendarModal(false)}>
-                <Text style={styles.cancelDateButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmDateButton}
-                onPress={confirmDateSelection}>
-                <Text style={styles.confirmDateButtonText}>Confirm</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Message Details Modal */}
-      <Modal
-        visible={showDetailsModal}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowDetailsModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.detailsModalContainer}>
-            <View style={styles.detailsModalHeader}>
-              <View style={styles.filterModalTitleRow}>
-                <Text style={styles.filterModalIcon}>ℹ️</Text>
-                <Text style={styles.filterModalTitle}>Sent SMS Details</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setShowDetailsModal(false)}>
-                <Text style={styles.modalCloseBtnText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.detailsModalBody}>
-              {selectedMessage && (
-                <>
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLabelRow}>
-                      <Text style={styles.detailIcon}>📅</Text>
-                      <Text style={styles.detailLabel}>Date Submitted:</Text>
-                    </View>
-                    <Text style={styles.detailValue}>{selectedMessage.sentDate}</Text>
-                  </View>
-                  
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLabelRow}>
-                      <Text style={styles.detailIcon}>⏰</Text>
-                      <Text style={styles.detailLabel}>Sent at Time:</Text>
-                    </View>
-                    <Text style={styles.detailValue}>{selectedMessage.sentDate}</Text>
-                  </View>
-                  
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLabelRow}>
-                      <Text style={styles.detailIcon}>👤</Text>
-                      <Text style={styles.detailLabel}>Sender:</Text>
-                    </View>
-                    <Text style={styles.detailValue}>SMS Expert</Text>
-                  </View>
-                  
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLabelRow}>
-                      <Text style={styles.detailIcon}>💬</Text>
-                      <Text style={styles.detailLabel}>Message Content:</Text>
-                    </View>
-                    <View style={styles.messageBox}>
-                      <Text style={styles.messageBoxText}>{selectedMessage.message}</Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLabelRow}>
-                      <Text style={styles.detailIcon}>📱</Text>
-                      <Text style={styles.detailLabel}>Sent To:</Text>
-                    </View>
-                    <Text style={styles.detailValue}>{selectedMessage.to}</Text>
-                  </View>
-                  
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLabelRow}>
-                      <Text style={styles.detailIcon}>📤</Text>
-                      <Text style={styles.detailLabel}>Sent By:</Text>
-                    </View>
-                    <Text style={styles.detailValue}>Control Panel</Text>
-                  </View>
-                  
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLabelRow}>
-                      <Text style={styles.detailIcon}>💷</Text>
-                      <Text style={styles.detailLabel}>Cost to You:</Text>
-                    </View>
-                    <Text style={styles.detailValue}>£0.035</Text>
-                  </View>
-                  
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLabelRow}>
-                      <Text style={styles.detailIcon}>✅</Text>
-                      <Text style={styles.detailLabel}>Delivery Status:</Text>
-                    </View>
-                    <View style={[styles.statusBadge, getStatusStyle(selectedMessage.status), {alignSelf: 'flex-start'}]}>
-                      <Text style={styles.statusText}>{selectedMessage.status}</Text>
-                    </View>
-                  </View>
-                </>
-              )}
-            </ScrollView>
-            
-            <View style={styles.detailsModalFooter}>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setShowDetailsModal(false)}>
-                <Text style={styles.closeButtonIcon}>✕</Text>
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {renderFilterModal()}
+      {renderCalendarModal()}
+      {renderDetailsModal()}
     </SafeAreaView>
   );
 };
@@ -873,403 +817,297 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 30,
-  },
-  // Filter Button Card
-  filterButtonCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    marginBottom: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 2,
-    borderColor: '#ea6118',
-    shadowColor: '#ea6118',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  filterButtonLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  loadingContainer: {
     flex: 1,
-  },
-  filterIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#fff7ed',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
-  },
-  filterIcon: {
-    fontSize: 24,
-  },
-  filterButtonTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#293B50',
-    marginBottom: 2,
-  },
-  filterButtonSubtitle: {
-    fontSize: 12,
-    color: '#64748b',
-  },
-  filterButtonRight: {
-    paddingLeft: 10,
-  },
-  filterArrow: {
-    fontSize: 28,
-    color: '#ea6118',
-    fontWeight: '300',
-  },
-  // Results Card
-  resultsCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  // Loading State
-  loadingContainer: {
-    padding: 60,
-    alignItems: 'center',
-  },
-  loadingIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   loadingText: {
-    fontSize: 16,
+    marginTop: 12,
+    fontSize: 14,
     color: '#64748b',
-    fontWeight: '500',
   },
-  // No Data State
-  noDataContainer: {
-    padding: 40,
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
   },
-  noDataIcon: {
-    fontSize: 64,
-    color: '#cbd5e1',
-    marginBottom: 16,
+  errorIcon: {
+    fontSize: 48,
   },
-  noDataTitle: {
-    fontSize: 20,
+  errorTitle: {
+    fontSize: 18,
     fontWeight: '700',
-    color: '#293B50',
-    marginBottom: 10,
+    color: '#dc2626',
+    marginTop: 12,
   },
-  noDataText: {
+  errorText: {
     fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
-    lineHeight: 22,
+    marginTop: 8,
   },
-  // Record Info Header
-  recordInfoHeader: {
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-    backgroundColor: '#f8fafc',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  retryButton: {
+    marginTop: 20,
+    backgroundColor: '#ea6118',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 10,
   },
-  recordInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recordInfoLabel: {
-    fontSize: 12,
-    color: '#64748b',
-    marginRight: 6,
-  },
-  recordInfoValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#ea6118',
-  },
-  // Messages List
-  messagesList: {
-    padding: 0,
-  },
-  messageItem: {
-    padding: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  messageRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  messageLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  messageToLabel: {
-    fontSize: 12,
-    color: '#64748b',
-    marginRight: 6,
-  },
-  messageTo: {
-    fontSize: 14,
+  retryButtonText: {
+    color: '#fff',
     fontWeight: '600',
+    fontSize: 16,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ea6118',
+    margin: 16,
+    padding: 14,
+    borderRadius: 12,
+    shadowColor: '#ea6118',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  filterButtonIcon: {
+    fontSize: 18,
+  },
+  filterButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  filterBadge: {
+    marginLeft: 8,
+    backgroundColor: '#fff',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterBadgeText: {
+    color: '#ea6118',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  resultsInfo: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  resultsText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  messageCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ea6118',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  messageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  mobileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mobileIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  mobileNumber: {
+    fontSize: 15,
+    fontWeight: '700',
     color: '#293B50',
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  statusDelivered: {
-    backgroundColor: '#dcfce7',
-  },
-  statusPending: {
-    backgroundColor: '#fef3c7',
-  },
-  statusFailed: {
-    backgroundColor: '#fee2e2',
+  statusEmoji: {
+    fontSize: 10,
   },
   statusText: {
-    fontSize: 12,
+    color: '#fff',
+    fontSize: 11,
     fontWeight: '600',
+    marginLeft: 4,
     textTransform: 'uppercase',
-    color: '#293B50',
   },
   messagePreview: {
     fontSize: 14,
-    color: '#ea6118',
-    fontWeight: '500',
-    marginBottom: 6,
+    color: '#475569',
+    lineHeight: 20,
+    marginBottom: 10,
   },
-  messageDate: {
-    fontSize: 12,
-    color: '#94a3b8',
+  messageFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    paddingTop: 10,
   },
-  // Loading More
-  loadingMoreContainer: {
-    padding: 16,
+  timeContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  loadingMoreText: {
-    fontSize: 14,
+  footerIcon: {
+    fontSize: 12,
+    marginRight: 4,
+  },
+  timeText: {
+    fontSize: 12,
     color: '#64748b',
   },
-  // End of List
-  endOfListContainer: {
-    padding: 16,
+  senderContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  endOfListText: {
+  senderText: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#64748b',
   },
-  // Filter Modal
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#293B50',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 20,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+
+  // Filter Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
   },
-  filterModalContainer: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '90%',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: -4},
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
+  filterModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
   },
   filterModalHeader: {
-    backgroundColor: '#ea6118',
-    padding: 20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  filterModalTitleRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-  },
-  filterModalIcon: {
-    fontSize: 22,
-    marginRight: 10,
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
   },
   filterModalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  modalCloseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCloseBtnText: {
     fontSize: 18,
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  filterModalBody: {
-    padding: 20,
-    maxHeight: 450,
-  },
-  filterSection: {
-    marginBottom: 20,
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 14,
-  },
-  filterTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  filterTitleIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  filterTitle: {
-    fontSize: 14,
     fontWeight: '700',
     color: '#293B50',
   },
-  // Checkbox
-  checkboxGroup: {
-    gap: 10,
+  closeIcon: {
+    fontSize: 20,
+    color: '#64748b',
+    fontWeight: '600',
   },
-  checkboxItem: {
+  closeIconWhite: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: '600',
+  },
+  filterScrollView: {
+    padding: 20,
+  },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#293B50',
+    marginBottom: 12,
+  },
+  filterOptions: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
+    flexWrap: 'wrap',
   },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
+  filterOption: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    borderWidth: 1,
     borderColor: '#e2e8f0',
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
+    marginRight: 8,
+    marginBottom: 8,
   },
-  checkboxChecked: {
+  filterOptionActive: {
     backgroundColor: '#ea6118',
     borderColor: '#ea6118',
   },
-  checkboxCheck: {
-    fontSize: 14,
-    color: '#ffffff',
-    fontWeight: '700',
-  },
-  checkboxIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  checkboxLabel: {
-    fontSize: 14,
-    color: '#475569',
+  filterOptionText: {
+    fontSize: 13,
+    color: '#64748b',
     fontWeight: '500',
   },
-  // Form Elements
-  formGroup: {
-    marginBottom: 16,
+  filterOptionTextActive: {
+    color: '#fff',
   },
-  formLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  formLabelIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
-  formLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#293B50',
-  },
-  textInput: {
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
+  filterInput: {
+    borderWidth: 1,
     borderColor: '#e2e8f0',
     borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
+    padding: 12,
+    fontSize: 15,
     color: '#293B50',
-  },
-  // Dropdown
-  dropdown: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  dropdownText: {
-    fontSize: 14,
-    color: '#293B50',
-    flex: 1,
-  },
-  dropdownArrow: {
-    fontSize: 12,
-    color: '#64748b',
-  },
-  dropdownList: {
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-    borderRadius: 10,
-    marginTop: 8,
-    maxHeight: 140,
-    overflow: 'hidden',
-  },
-  dropdownScroll: {
-    maxHeight: 140,
-  },
-  dropdownItem: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
-  },
-  dropdownItemActive: {
-    backgroundColor: '#fff7ed',
-  },
-  dropdownItemText: {
-    fontSize: 14,
-    color: '#293B50',
-  },
-  dropdownItemTextActive: {
-    color: '#ea6118',
-    fontWeight: '600',
+    backgroundColor: '#f8fafc',
   },
   // Date Range Button
   dateRangeButton: {
@@ -1314,7 +1152,41 @@ const styles = StyleSheet.create({
   dateRangeIconText: {
     fontSize: 20,
   },
-  // Calendar Modal
+  filterActions: {
+    flexDirection: 'row',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    gap: 12,
+  },
+  resetButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 10,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  applyButton: {
+    flex: 2,
+    flexDirection: 'row',
+    padding: 14,
+    borderRadius: 10,
+    backgroundColor: '#ea6118',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+
+  // Calendar Modal Styles
   calendarModalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1346,6 +1218,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#ffffff',
+  },
+  calendarCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarCloseBtnText: {
+    fontSize: 18,
+    color: '#ffffff',
+    fontWeight: '600',
   },
   selectedDatesRow: {
     flexDirection: 'row',
@@ -1490,137 +1375,80 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-  // Filter Modal Footer
-  filterModalFooter: {
-    padding: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    flexDirection: 'row',
-    gap: 10,
-  },
-  resetButton: {
-    flex: 1,
-    backgroundColor: '#f1f5f9',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#e2e8f0',
-  },
-  resetButtonIcon: {
-    fontSize: 14,
-    marginRight: 6,
-  },
-  resetButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
-  },
-  applyFilterButton: {
-    flex: 2,
-    backgroundColor: '#ea6118',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-  },
-  applyFilterButtonIcon: {
-    fontSize: 16,
-    marginRight: 8,
-    color: '#ffffff',
-  },
-  applyFilterButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  // Details Modal
-  detailsModalContainer: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: -4},
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 10,
+
+  // Details Modal Styles
+  detailsModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '85%',
   },
   detailsModalHeader: {
-    backgroundColor: '#ea6118',
-    padding: 20,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  detailsModalBody: {
+    alignItems: 'center',
     padding: 20,
-    maxHeight: 400,
+    backgroundColor: '#293B50',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  detailsModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  detailsLoading: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  detailsScrollView: {
+    padding: 20,
   },
   detailRow: {
     marginBottom: 16,
   },
-  detailLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  detailIcon: {
-    fontSize: 16,
-    marginRight: 8,
-  },
   detailLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-    color: '#293B50',
+    color: '#64748b',
+    marginBottom: 4,
   },
   detailValue: {
-    fontSize: 14,
-    color: '#475569',
-    marginLeft: 24,
+    fontSize: 15,
+    color: '#293B50',
+    fontWeight: '500',
+  },
+  statusValue: {
+    textTransform: 'uppercase',
+    fontWeight: '700',
+  },
+  messageSection: {
+    marginBottom: 16,
   },
   messageBox: {
     backgroundColor: '#f8fafc',
+    padding: 16,
     borderRadius: 10,
-    padding: 14,
-    marginTop: 6,
     borderLeftWidth: 4,
     borderLeftColor: '#ea6118',
+    marginTop: 8,
   },
-  messageBoxText: {
+  messageText: {
     fontSize: 14,
     color: '#293B50',
-    lineHeight: 20,
+    lineHeight: 22,
   },
-  detailsModalFooter: {
-    padding: 20,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-  },
-  closeButton: {
-    backgroundColor: '#ea6118',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
+  closeDetailsButton: {
+    margin: 20,
+    padding: 14,
     borderRadius: 10,
-  },
-  closeButtonIcon: {
-    fontSize: 16,
-    marginRight: 8,
-    color: '#ffffff',
+    backgroundColor: '#293B50',
+    alignItems: 'center',
   },
   closeButtonText: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#fff',
   },
 });
 

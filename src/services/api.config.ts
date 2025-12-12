@@ -21,10 +21,16 @@ export const API_ENDPOINTS = {
   DASHBOARD: 'dashboard',
   DASHBOARD_WALLET: 'dashboard/wallet',
   
-  // SMS
-  SEND_SMS: 'sms/send',
+  // Send SMS
+  SEND_SMS: 'send-sms',
+  SEND_SMS_CONTACTS: 'send-sms/contacts',
+  SEND_SMS_CALCULATE: 'send-sms/calculate',
+  SEND_SMS_SCHEDULE: 'send-sms/schedule',
+  
+  // SMS History
   RECEIVED_SMS: 'sms/received',
   SENT_SMS: 'sms/sent',
+  SMS_HISTORY: 'sms/history',
   
   // Wallet & SMS Wallet Settings
   WALLET: 'wallet',

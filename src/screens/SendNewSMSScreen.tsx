@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,24 @@ import {
   StatusBar,
   Alert,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
+  Modal,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
+import {
+  getSendSmsData,
+  getContacts,
+  calculateSmsCost,
+  sendSms,
+  scheduleSms,
+  getCharacterCountInfo,
+  SendSmsData,
+  Contact,
+  CalculateCostData,
+} from '../services/smsService';
 
 interface SendNewSMSScreenProps {
   navigation: {
@@ -21,20 +36,35 @@ interface SendNewSMSScreenProps {
 }
 
 const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
+  // Loading States
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+
+  // Data States
+  const [smsData, setSmsData] = useState<SendSmsData | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [costData, setCostData] = useState<CalculateCostData | null>(null);
+  const [showCostModal, setShowCostModal] = useState(false);
+
   // Accordion State
   const [activeAccordion, setActiveAccordion] = useState<number>(1);
-  
+
   // Form State
-  const [paymentType, setPaymentType] = useState('wallet');
-  const [messageType, setMessageType] = useState('sms');
-  const [senderIdType, setSenderIdType] = useState('custom');
-  const [customSenderId, setCustomSenderId] = useState('MYBRANDNAME');
+  const [messageType, setMessageType] = useState<'sms' | 'whatsapp'>('sms');
+  const [senderIdType, setSenderIdType] = useState<'default' | 'custom'>('custom');
+  const [customSenderId, setCustomSenderId] = useState('');
   const [recipients, setRecipients] = useState('');
   const [messageContent, setMessageContent] = useState('');
-  const [sendDate, setSendDate] = useState('2025-12-07');
-  const [sendHour, setSendHour] = useState('16');
-  const [sendMinute, setSendMinute] = useState('00');
-  const [listType, setListType] = useState('favourites');
+  const [sendDate, setSendDate] = useState('');
+  const [sendHour, setSendHour] = useState('');
+  const [sendMinute, setSendMinute] = useState('');
+  const [listType, setListType] = useState<'favourites' | 'groups'>('favourites');
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+
+  // Dropdown States
   const [showHourDropdown, setShowHourDropdown] = useState(false);
   const [showMinuteDropdown, setShowMinuteDropdown] = useState(false);
   const [showListTypeDropdown, setShowListTypeDropdown] = useState(false);
@@ -49,19 +79,63 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
     label: `:${m}`,
   }));
 
-  const getCharacterCount = () => messageContent.length;
-  
-  const getSMSParts = () => {
-    const len = getCharacterCount();
-    if (len <= 160) return 1;
-    return Math.ceil(len / 153);
+  // Load initial data
+  const loadData = useCallback(async () => {
+    try {
+      const result = await getSendSmsData();
+      if (result.success && result.data) {
+        setSmsData(result.data);
+        setCustomSenderId(result.data.sender_id.custom || result.data.sender_id.default);
+        setSendDate(result.data.current_time.date);
+        setSendHour(result.data.current_time.hour);
+        setSendMinute(result.data.current_time.minute.padStart(2, '0'));
+      } else {
+        Alert.alert('Error', result.message);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load data');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Load contacts
+  const loadContacts = useCallback(async (type: 'favourites' | 'groups') => {
+    setIsLoadingContacts(true);
+    try {
+      const result = await getContacts(type);
+      if (result.success && result.data) {
+        setContacts(result.data.contacts);
+      } else {
+        setContacts([]);
+      }
+    } catch (error) {
+      setContacts([]);
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    loadContacts(listType);
+  }, [listType, loadContacts]);
+
+  const onRefresh = () => {
+    setIsRefreshing(true);
+    loadData();
+    loadContacts(listType);
   };
 
-  const handleNotificationPress = () => {
-    Alert.alert('Notifications', 'You have 3 new notifications');
+  const getCharacterInfo = () => {
+    return getCharacterCountInfo(messageContent);
   };
 
-  const handleCalculateCost = () => {
+  const handleCalculateCost = async () => {
     if (!recipients.trim()) {
       Alert.alert('Error', 'You must enter phone numbers in the To: box');
       return;
@@ -70,14 +144,79 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
       Alert.alert('Error', 'Please enter a message to calculate cost');
       return;
     }
+
+    setIsCalculating(true);
+    try {
+      const result = await calculateSmsCost(recipients, messageContent);
+      if (result.success && result.data) {
+        setCostData(result.data);
+        setShowCostModal(true);
+      } else {
+        Alert.alert('Error', result.message);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to calculate cost');
+    } finally {
+      setIsCalculating(false);
+    }
+  };
+
+  const handleSendNow = async () => {
+    if (!recipients.trim()) {
+      Alert.alert('Error', 'Please enter recipient numbers');
+      return;
+    }
+    if (!messageContent.trim()) {
+      Alert.alert('Error', 'Please enter a message');
+      return;
+    }
+
+    const senderId = senderIdType === 'default' && smsData
+      ? smsData.sender_id.default
+      : customSenderId;
+
+    if (!senderId) {
+      Alert.alert('Error', 'Please enter a sender ID');
+      return;
+    }
+
     Alert.alert(
-      'Cost Calculation',
-      `Message: ${getCharacterCount()} characters (${getSMSParts()} SMS parts)\nRecipients: ${recipients.split(',').length}\n\nEstimated Cost: £0.045`,
-      [{text: 'OK'}]
+      'Confirm Send',
+      `Are you sure you want to send this SMS to ${recipients.split(',').length} recipient(s)?`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Send',
+          onPress: async () => {
+            setIsSending(true);
+            try {
+              const result = await sendSms(recipients, messageContent, senderId, messageType);
+              if (result.success) {
+                Alert.alert('Success', result.message, [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      setRecipients('');
+                      setMessageContent('');
+                      loadData(); // Refresh wallet balance
+                    },
+                  },
+                ]);
+              } else {
+                Alert.alert('Error', result.message);
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to send SMS');
+            } finally {
+              setIsSending(false);
+            }
+          },
+        },
+      ],
     );
   };
 
-  const handleSendNow = () => {
+  const handleSendLater = async () => {
     if (!recipients.trim()) {
       Alert.alert('Error', 'Please enter recipient numbers');
       return;
@@ -86,31 +225,85 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
       Alert.alert('Error', 'Please enter a message');
       return;
     }
-    Alert.alert('Success', 'Your SMS has been sent successfully!');
-  };
 
-  const handleSendLater = () => {
-    if (!recipients.trim()) {
-      Alert.alert('Error', 'Please enter recipient numbers');
+    const senderId = senderIdType === 'default' && smsData
+      ? smsData.sender_id.default
+      : customSenderId;
+
+    if (!senderId) {
+      Alert.alert('Error', 'Please enter a sender ID');
       return;
     }
-    if (!messageContent.trim()) {
-      Alert.alert('Error', 'Please enter a message');
-      return;
-    }
-    Alert.alert('Scheduled', `Your SMS has been scheduled for ${sendDate} at ${sendHour}:${sendMinute}`);
+
+    Alert.alert(
+      'Confirm Schedule',
+      `Schedule SMS for ${sendDate} at ${sendHour}:${sendMinute}?`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Schedule',
+          onPress: async () => {
+            setIsSending(true);
+            try {
+              const result = await scheduleSms(
+                recipients,
+                messageContent,
+                senderId,
+                sendDate,
+                sendHour,
+                sendMinute,
+                messageType,
+              );
+              if (result.success) {
+                Alert.alert('Success', result.message, [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      setRecipients('');
+                      setMessageContent('');
+                    },
+                  },
+                ]);
+              } else {
+                Alert.alert('Error', result.message);
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to schedule SMS');
+            } finally {
+              setIsSending(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleAddContacts = () => {
-    Alert.alert('Add Contacts', 'Contact selection feature coming soon');
+    if (selectedContacts.length === 0) {
+      Alert.alert('Info', 'Please select contacts to add');
+      return;
+    }
+
+    const newNumbers = selectedContacts.join(', ');
+    setRecipients(prev => (prev ? `${prev}, ${newNumbers}` : newNumbers));
+    setSelectedContacts([]);
+  };
+
+  const toggleContactSelection = (contactId: string) => {
+    setSelectedContacts(prev => {
+      if (prev.includes(contactId)) {
+        return prev.filter(id => id !== contactId);
+      }
+      return [...prev, contactId];
+    });
   };
 
   const handleLaunchCampaign = () => {
-    Alert.alert('Campaign Manager', 'Launching Campaign Manager...');
+    navigation.navigate('CampaignHome');
   };
 
   const handleUploadBlacklist = () => {
-    Alert.alert('Upload', 'File upload feature coming soon');
+    navigation.navigate('Blacklist');
   };
 
   const renderAccordionHeader = (
@@ -140,6 +333,124 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
     </TouchableOpacity>
   );
 
+  const renderCostModal = () => (
+    <Modal
+      visible={showCostModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowCostModal(false)}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>💰 Cost Calculation</Text>
+            <TouchableOpacity onPress={() => setShowCostModal(false)}>
+              <Text style={styles.modalClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {costData && (
+            <ScrollView style={styles.modalBody}>
+              {/* Message Info */}
+              <View style={styles.costSection}>
+                <Text style={styles.costSectionTitle}>📝 Message Details</Text>
+                <Text style={styles.costText}>
+                  Characters: {costData.message_info.length}
+                </Text>
+                <Text style={styles.costText}>
+                  SMS Parts: {costData.message_info.sms_parts}
+                </Text>
+                <Text style={styles.costTextSmall}>
+                  {costData.message_info.part_info}
+                </Text>
+              </View>
+
+              {/* Recipients Info */}
+              <View style={styles.costSection}>
+                <Text style={styles.costSectionTitle}>👥 Recipients</Text>
+                <Text style={styles.costText}>
+                  Valid Numbers: {costData.recipients.total}
+                </Text>
+                {costData.recipients.invalid > 0 && (
+                  <Text style={styles.costTextWarning}>
+                    Invalid Numbers: {costData.recipients.invalid}
+                  </Text>
+                )}
+              </View>
+
+              {/* Cost Breakdown */}
+              {costData.cost_breakdown.length > 0 && (
+                <View style={styles.costSection}>
+                  <Text style={styles.costSectionTitle}>📊 Cost Breakdown</Text>
+                  {costData.cost_breakdown.map((item, index) => (
+                    <View key={index} style={styles.costBreakdownItem}>
+                      <Text style={styles.costText}>
+                        {item.country} (+{item.dialcode}): {item.count} number(s)
+                      </Text>
+                      <Text style={styles.costTextSmall}>
+                        Rate: £{item.rate_per_sms.toFixed(4)} × {costData.message_info.sms_parts} SMS = £{item.total_cost.toFixed(4)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Total Cost */}
+              <View style={styles.costSection}>
+                <Text style={styles.costSectionTitle}>💷 Total Cost</Text>
+                <Text style={styles.costTotal}>{costData.total_cost.formatted}</Text>
+              </View>
+
+              {/* Wallet Balance */}
+              <View style={[
+                styles.costSection,
+                !costData.wallet.sufficient_funds && styles.costSectionError,
+              ]}>
+                <Text style={styles.costText}>
+                  Wallet Balance: {costData.wallet.formatted}
+                </Text>
+                {costData.wallet.sufficient_funds ? (
+                  <Text style={styles.costTextSuccess}>
+                    ✓ Sufficient funds available
+                  </Text>
+                ) : (
+                  <Text style={styles.costTextError}>
+                    ⚠ Insufficient funds! Need £{costData.wallet.shortage.toFixed(2)} more
+                  </Text>
+                )}
+              </View>
+            </ScrollView>
+          )}
+
+          <TouchableOpacity
+            style={styles.modalButton}
+            onPress={() => setShowCostModal(false)}>
+            <Text style={styles.modalButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+        <Header
+          title="Send New SMS"
+          onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={() => {}}
+          notificationCount={0}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ea6118" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const charInfo = getCharacterInfo();
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#293B50" />
@@ -147,27 +458,32 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
       <Header
         title="Send New SMS"
         onMenuPress={() => navigation.openDrawer()}
-        onNotificationPress={handleNotificationPress}
-        notificationCount={3}
-        walletBalance="£6859"
+        onNotificationPress={() => Alert.alert('Notifications', 'Coming soon')}
+        notificationCount={0}
+        walletBalance={smsData?.wallet.formatted}
       />
 
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
+        }>
 
         {/* Main Card */}
         <View style={styles.mainCard}>
           {/* Option 1: Quick Send SMS */}
           <View style={styles.accordionItem}>
             {renderAccordionHeader(1, '⚡', 'Option 1: Quickly Send SMS Messages')}
-            
+
             {activeAccordion === 1 && (
               <View style={styles.accordionBody}>
                 {/* Wallet Balance Card */}
                 <View style={styles.walletCard}>
-                  <Text style={styles.walletAmount}>£ 6859.83</Text>
+                  <Text style={styles.walletAmount}>
+                    {smsData?.wallet.formatted || '£ 0.00'}
+                  </Text>
                   <Text style={styles.walletLabel}>
                     Remaining in your Wallet
                   </Text>
@@ -179,7 +495,7 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                     <Text style={styles.sectionIcon}>✏️</Text>
                     <Text style={styles.sectionTitle}>Compose Message</Text>
                   </View>
-                  
+
                   <View style={styles.sectionContent}>
                     {/* Payment Type */}
                     <View style={styles.formGroup}>
@@ -187,14 +503,12 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                         <Text style={styles.formLabelIcon}>💳</Text>
                         <Text style={styles.formLabel}>Who is Paying?</Text>
                       </View>
-                      <TouchableOpacity
-                        style={[styles.radioOption, paymentType === 'wallet' && styles.radioOptionActive]}
-                        onPress={() => setPaymentType('wallet')}>
-                        <View style={[styles.radioCircle, paymentType === 'wallet' && styles.radioCircleActive]}>
-                          {paymentType === 'wallet' && <View style={styles.radioInner} />}
+                      <View style={[styles.radioOption, styles.radioOptionActive]}>
+                        <View style={[styles.radioCircle, styles.radioCircleActive]}>
+                          <View style={styles.radioInner} />
                         </View>
                         <Text style={styles.radioLabel}>I will pay using my Wallet</Text>
-                      </TouchableOpacity>
+                      </View>
                     </View>
 
                     {/* Message Type */}
@@ -212,6 +526,16 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                           </View>
                           <Text style={styles.radioLabel}>📱 SMS</Text>
                         </TouchableOpacity>
+                        {smsData?.whatsapp_enabled && (
+                          <TouchableOpacity
+                            style={[styles.radioOption, messageType === 'whatsapp' && styles.radioOptionActive, {marginTop: 10}]}
+                            onPress={() => setMessageType('whatsapp')}>
+                            <View style={[styles.radioCircle, messageType === 'whatsapp' && styles.radioCircleActive]}>
+                              {messageType === 'whatsapp' && <View style={styles.radioInner} />}
+                            </View>
+                            <Text style={styles.radioLabel}>💬 WhatsApp</Text>
+                          </TouchableOpacity>
+                        )}
                       </View>
                     </View>
 
@@ -220,7 +544,6 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                       <View style={styles.formLabelRow}>
                         <Text style={styles.formLabelIcon}>👤</Text>
                         <Text style={styles.formLabel}>From (Sender ID)</Text>
-                        <Text style={styles.helpIcon}>❓</Text>
                       </View>
                       <TouchableOpacity
                         style={[styles.radioOption, senderIdType === 'default' && styles.radioOptionActive, {marginBottom: 10}]}
@@ -228,7 +551,9 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                         <View style={[styles.radioCircle, senderIdType === 'default' && styles.radioCircleActive]}>
                           {senderIdType === 'default' && <View style={styles.radioInner} />}
                         </View>
-                        <Text style={styles.radioLabel}>MYBRANDNAME</Text>
+                        <Text style={styles.radioLabel}>
+                          {smsData?.sender_id.default || 'MYBRANDNAME'}
+                        </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.radioOption, senderIdType === 'custom' && styles.radioOptionActive]}
@@ -255,7 +580,6 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                       <View style={styles.formLabelRow}>
                         <Text style={styles.formLabelIcon}>👥</Text>
                         <Text style={styles.formLabel}>To (Recipients)</Text>
-                        <Text style={styles.helpIcon}>❓</Text>
                       </View>
                       <TextInput
                         style={[styles.textInput, styles.textArea]}
@@ -282,21 +606,45 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                         placeholderTextColor="#94a3b8"
                         multiline
                         numberOfLines={4}
+                        maxLength={1206}
                       />
-                      <Text style={styles.charCounter}>
-                        {getCharacterCount()} characters / {getSMSParts()} SMS
+                      <Text style={[
+                        styles.charCounter,
+                        charInfo.length > 918 && styles.charCounterWarning,
+                        charInfo.length > 1071 && styles.charCounterError,
+                      ]}>
+                        {charInfo.length} characters / {charInfo.parts} SMS
+                        {charInfo.isMultiPart && ' (multi-part)'}
                       </Text>
                     </View>
 
                     {/* Action Buttons */}
                     <View style={styles.actionRow}>
-                      <TouchableOpacity style={styles.calculateButton} onPress={handleCalculateCost}>
-                        <Text style={styles.calculateButtonIcon}>🧮</Text>
-                        <Text style={styles.calculateButtonText}>Calculate Cost</Text>
+                      <TouchableOpacity
+                        style={[styles.calculateButton, isCalculating && styles.buttonDisabled]}
+                        onPress={handleCalculateCost}
+                        disabled={isCalculating}>
+                        {isCalculating ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <>
+                            <Text style={styles.calculateButtonIcon}>🧮</Text>
+                            <Text style={styles.calculateButtonText}>Calculate Cost</Text>
+                          </>
+                        )}
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.sendButton} onPress={handleSendNow}>
-                        <Text style={styles.sendButtonIcon}>📤</Text>
-                        <Text style={styles.sendButtonText}>Send Now</Text>
+                      <TouchableOpacity
+                        style={[styles.sendButton, isSending && styles.buttonDisabled]}
+                        onPress={handleSendNow}
+                        disabled={isSending}>
+                        {isSending ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <>
+                            <Text style={styles.sendButtonIcon}>📤</Text>
+                            <Text style={styles.sendButtonText}>Send Now</Text>
+                          </>
+                        )}
                       </TouchableOpacity>
                     </View>
 
@@ -307,20 +655,23 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                         <Text style={styles.formLabel}>Schedule Message</Text>
                       </View>
                       <View style={styles.scheduleRow}>
-                        <TouchableOpacity style={styles.scheduleButton} onPress={handleSendLater}>
+                        <TouchableOpacity
+                          style={[styles.scheduleButton, isSending && styles.buttonDisabled]}
+                          onPress={handleSendLater}
+                          disabled={isSending}>
                           <Text style={styles.scheduleButtonIcon}>📅</Text>
                           <Text style={styles.scheduleButtonText}>Send at</Text>
                         </TouchableOpacity>
                         <View style={styles.dateInput}>
                           <Text style={styles.dateText}>{sendDate}</Text>
                         </View>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={styles.timeDropdown}
                           onPress={() => setShowHourDropdown(!showHourDropdown)}>
                           <Text style={styles.timeText}>{sendHour}:00</Text>
                           <Text style={styles.dropdownIcon}>▼</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity 
+                        <TouchableOpacity
                           style={styles.timeDropdown}
                           onPress={() => setShowMinuteDropdown(!showMinuteDropdown)}>
                           <Text style={styles.timeText}>:{sendMinute}</Text>
@@ -375,7 +726,7 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                     <Text style={styles.sectionIcon}>📇</Text>
                     <Text style={styles.sectionTitle}>Contacts & Groups</Text>
                   </View>
-                  
+
                   <View style={styles.sectionContent}>
                     <View style={styles.formGroup}>
                       <View style={styles.formLabelRow}>
@@ -422,13 +773,47 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
                         <Text style={styles.formLabel}>Available Contacts</Text>
                       </View>
                       <View style={styles.contactList}>
-                        <Text style={styles.noContactsText}>No contacts available</Text>
+                        {isLoadingContacts ? (
+                          <ActivityIndicator size="small" color="#ea6118" />
+                        ) : contacts.length > 0 ? (
+                          <ScrollView style={styles.contactScroll} nestedScrollEnabled>
+                            {contacts.map(contact => (
+                              <TouchableOpacity
+                                key={contact.id}
+                                style={[
+                                  styles.contactItem,
+                                  selectedContacts.includes(contact.number) && styles.contactItemSelected,
+                                ]}
+                                onPress={() => toggleContactSelection(contact.number)}>
+                                <View style={[
+                                  styles.contactCheckbox,
+                                  selectedContacts.includes(contact.number) && styles.contactCheckboxSelected,
+                                ]}>
+                                  {selectedContacts.includes(contact.number) && (
+                                    <Text style={styles.contactCheckmark}>✓</Text>
+                                  )}
+                                </View>
+                                <View style={styles.contactInfo}>
+                                  <Text style={styles.contactName}>{contact.name}</Text>
+                                  <Text style={styles.contactNumber}>{contact.number}</Text>
+                                </View>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        ) : (
+                          <Text style={styles.noContactsText}>No contacts available</Text>
+                        )}
                       </View>
                     </View>
 
-                    <TouchableOpacity style={styles.addContactsButton} onPress={handleAddContacts}>
+                    <TouchableOpacity
+                      style={[styles.addContactsButton, selectedContacts.length === 0 && styles.buttonDisabled]}
+                      onPress={handleAddContacts}
+                      disabled={selectedContacts.length === 0}>
                       <Text style={styles.addContactsIcon}>➕</Text>
-                      <Text style={styles.addContactsText}>Add Selected Contacts</Text>
+                      <Text style={styles.addContactsText}>
+                        Add Selected ({selectedContacts.length})
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -439,7 +824,7 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
           {/* Option 2: Campaign Manager */}
           <View style={styles.accordionItem}>
             {renderAccordionHeader(2, '📢', 'Option 2: Campaign Manager')}
-            
+
             {activeAccordion === 2 && (
               <View style={styles.accordionBody}>
                 <View style={styles.campaignSection}>
@@ -463,29 +848,28 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
           {/* Option 3: Upload Blacklisted Numbers */}
           <View style={styles.accordionItem}>
             {renderAccordionHeader(3, '🚫', 'Option 3: Upload Blacklisted Numbers')}
-            
+
             {activeAccordion === 3 && (
               <View style={styles.accordionBody}>
                 <View style={styles.uploadSection}>
                   <Text style={styles.uploadIcon}>☁️</Text>
-                  <Text style={styles.uploadTitle}>Upload Blacklist File</Text>
+                  <Text style={styles.uploadTitle}>Manage Blacklist</Text>
+                  <Text style={styles.uploadDescription}>
+                    View and manage your blacklisted numbers to prevent sending SMS to blocked contacts.
+                  </Text>
                   <TouchableOpacity style={styles.uploadButton} onPress={handleUploadBlacklist}>
-                    <Text style={styles.uploadButtonIcon}>📤</Text>
-                    <Text style={styles.uploadButtonText}>Choose File</Text>
+                    <Text style={styles.uploadButtonIcon}>📋</Text>
+                    <Text style={styles.uploadButtonText}>View Blacklist</Text>
                   </TouchableOpacity>
-                  <View style={styles.uploadRequirements}>
-                    <Text style={styles.requirementsTitle}>File Requirements:</Text>
-                    <Text style={styles.requirementItem}>• File must be plain text ending in .txt</Text>
-                    <Text style={styles.requirementItem}>• One phone number per line</Text>
-                    <Text style={styles.requirementItem}>• Contact support for instructions</Text>
-                  </View>
                 </View>
               </View>
             )}
           </View>
         </View>
-
       </ScrollView>
+
+      {/* Cost Modal */}
+      {renderCostModal()}
     </SafeAreaView>
   );
 };
@@ -505,7 +889,19 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 30,
   },
-  // Main Card
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#64748b',
+  },
   mainCard: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -513,7 +909,6 @@ const styles = StyleSheet.create({
     borderColor: '#e2e8f0',
     overflow: 'hidden',
   },
-  // Accordion
   accordionItem: {
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
@@ -557,7 +952,6 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f8fafc',
   },
-  // Wallet Card
   walletCard: {
     backgroundColor: '#293B50',
     borderRadius: 12,
@@ -575,7 +969,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
   },
-  // Section Card
   sectionCard: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -604,7 +997,6 @@ const styles = StyleSheet.create({
   sectionContent: {
     padding: 16,
   },
-  // Form Group
   formGroup: {
     marginBottom: 20,
   },
@@ -622,12 +1014,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#293B50',
   },
-  helpIcon: {
-    fontSize: 16,
-    marginLeft: 8,
-    color: '#64748b',
-  },
-  // Radio Group
   radioOption: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -671,7 +1057,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 8,
   },
-  // Input
   textInput: {
     backgroundColor: '#ffffff',
     borderWidth: 2,
@@ -692,7 +1077,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 8,
   },
-  // Action Buttons
+  charCounterWarning: {
+    color: '#f59e0b',
+  },
+  charCounterError: {
+    color: '#dc2626',
+  },
   actionRow: {
     flexDirection: 'row',
     gap: 12,
@@ -734,7 +1124,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-  // Schedule Section
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   scheduleSection: {
     backgroundColor: '#f8fafc',
     borderRadius: 10,
@@ -794,7 +1186,6 @@ const styles = StyleSheet.create({
     color: '#293B50',
     marginRight: 6,
   },
-  // Dropdown
   dropdown: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -847,15 +1238,64 @@ const styles = StyleSheet.create({
     color: '#ea6118',
     fontWeight: '600',
   },
-  // Contact List
   contactList: {
     backgroundColor: '#ffffff',
     borderWidth: 2,
     borderColor: '#e2e8f0',
     borderRadius: 10,
-    minHeight: 120,
+    minHeight: 150,
+    maxHeight: 200,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  contactScroll: {
+    width: '100%',
+    padding: 8,
+  },
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#f8fafc',
+  },
+  contactItemSelected: {
+    backgroundColor: '#fff7ed',
+    borderWidth: 1,
+    borderColor: '#ea6118',
+  },
+  contactCheckbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#cbd5e1',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contactCheckboxSelected: {
+    backgroundColor: '#ea6118',
+    borderColor: '#ea6118',
+  },
+  contactCheckmark: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#293B50',
+  },
+  contactNumber: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
   },
   noContactsText: {
     fontSize: 14,
@@ -878,7 +1318,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-  // Campaign Section
   campaignSection: {
     backgroundColor: '#fff7ed',
     borderRadius: 12,
@@ -928,7 +1367,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 18,
   },
-  // Upload Section
   uploadSection: {
     backgroundColor: '#f8fafc',
     borderRadius: 12,
@@ -947,6 +1385,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#293B50',
+    marginBottom: 8,
+  },
+  uploadDescription: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    lineHeight: 20,
     marginBottom: 16,
   },
   uploadButton: {
@@ -956,7 +1401,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 10,
-    marginBottom: 16,
   },
   uploadButtonIcon: {
     fontSize: 16,
@@ -967,20 +1411,111 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-  uploadRequirements: {
-    alignSelf: 'stretch',
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
-  requirementsTitle: {
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    backgroundColor: '#293B50',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  modalClose: {
+    fontSize: 24,
+    color: '#ffffff',
+    padding: 4,
+  },
+  modalBody: {
+    padding: 16,
+  },
+  costSection: {
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+  },
+  costSectionError: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  costSectionTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#293B50',
     marginBottom: 8,
   },
-  requirementItem: {
+  costText: {
+    fontSize: 14,
+    color: '#475569',
+    marginBottom: 4,
+  },
+  costTextSmall: {
     fontSize: 12,
     color: '#64748b',
     marginBottom: 4,
-    lineHeight: 20,
+  },
+  costTextWarning: {
+    fontSize: 14,
+    color: '#f59e0b',
+    marginBottom: 4,
+  },
+  costTextSuccess: {
+    fontSize: 14,
+    color: '#16a34a',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  costTextError: {
+    fontSize: 14,
+    color: '#dc2626',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  costBreakdownItem: {
+    marginBottom: 8,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  costTotal: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#293B50',
+  },
+  modalButton: {
+    backgroundColor: '#ea6118',
+    margin: 16,
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });
 
