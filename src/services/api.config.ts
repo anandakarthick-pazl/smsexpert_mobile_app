@@ -19,15 +19,23 @@ export const API_ENDPOINTS = {
   
   // Dashboard
   DASHBOARD: 'dashboard',
-  WALLET: 'dashboard/wallet',
+  DASHBOARD_WALLET: 'dashboard/wallet',
   
   // SMS
   SEND_SMS: 'sms/send',
   RECEIVED_SMS: 'sms/received',
   SENT_SMS: 'sms/sent',
   
-  // Wallet
-  WALLET_HISTORY: 'wallet/history',
+  // Wallet & SMS Wallet Settings
+  WALLET: 'wallet',
+  WALLET_SETTINGS: 'wallet/settings',
+  
+  // Buy SMS
+  BUY_SMS: 'buy-sms',
+  
+  // Invoices
+  INVOICES: 'invoices',
+  INVOICES_BY_TYPE: 'invoices/type',
   
   // Groups
   GROUPS: 'groups',
@@ -44,9 +52,6 @@ export const API_ENDPOINTS = {
   
   // Contracts
   CONTRACTS: 'contracts',
-  
-  // Invoices
-  INVOICES: 'invoices',
   
   // Blacklist
   BLACKLIST: 'blacklist',

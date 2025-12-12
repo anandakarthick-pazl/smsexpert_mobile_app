@@ -18,6 +18,8 @@ import GroupsScreen from './src/screens/GroupsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import ContractsScreen from './src/screens/ContractsScreen';
 import InvoicesScreen from './src/screens/InvoicesScreen';
+import InvoiceDetailScreen from './src/screens/InvoiceDetailScreen';
+import BuySmsScreen from './src/screens/BuySmsScreen';
 import DeliveryReceiptScreen from './src/screens/DeliveryReceiptScreen';
 import BlacklistScreen from './src/screens/BlacklistScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
@@ -52,7 +54,9 @@ type ScreenName =
   | 'Groups' 
   | 'Profile' 
   | 'Contracts'
-  | 'Invoices' 
+  | 'Invoices'
+  | 'InvoiceDetail'
+  | 'BuySms'
   | 'TechDocs' 
   | 'DeliveryReceipt' 
   | 'Stops' 
@@ -78,6 +82,7 @@ export const WalletContext = React.createContext<{
 // Main App Content Component
 function AppContent(): React.JSX.Element {
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Login');
+  const [routeParams, setRouteParams] = useState<{params?: any}>({params: {}});
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [userData, setUserData] = useState<User | null>(null);
@@ -285,8 +290,9 @@ function AppContent(): React.JSX.Element {
     companyName: userData?.company_name || 'Dashboard User',
   };
 
-  const navigate = (screen: string) => {
+  const navigate = (screen: string, params?: any) => {
     setCurrentScreen(screen as ScreenName);
+    setRouteParams({params: params || {}});
     setSidebarVisible(false);
   };
 
@@ -444,6 +450,10 @@ function AppContent(): React.JSX.Element {
         return <ContractsScreen navigation={navigation} />;
       case 'Invoices':
         return <InvoicesScreen navigation={navigation} />;
+      case 'InvoiceDetail':
+        return <InvoiceDetailScreen navigation={navigation} route={routeParams} />;
+      case 'BuySms':
+        return <BuySmsScreen navigation={navigation} />;
       case 'DeliveryReceipt':
         return <DeliveryReceiptScreen navigation={navigation} />;
       case 'Blacklist':

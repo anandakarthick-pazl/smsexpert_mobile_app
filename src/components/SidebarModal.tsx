@@ -27,6 +27,8 @@ interface MenuItem {
 const dashboardMenuItems: MenuItem[] = [
   {name: 'Dashboard', icon: '🏠', route: 'Dashboard'},
   {name: 'SMS Wallet', icon: '💰', route: 'SMSWallet'},
+  {name: 'Buy SMS', icon: '🛒', route: 'BuySms'},
+  {name: 'Invoices', icon: '🧾', route: 'Invoices'},
   {name: 'Send New SMS', icon: '📤', route: 'SendSMS'},
   {name: 'Received SMS', icon: '📥', route: 'ReceivedSMS'},
   {name: 'Sent SMS', icon: '💬', route: 'SentSMS'},
@@ -35,7 +37,6 @@ const dashboardMenuItems: MenuItem[] = [
   {name: 'Groups', icon: '👥', route: 'Groups'},
   {name: 'Client Profile', icon: '👤', route: 'Profile'},
   {name: 'Contracts', icon: '📄', route: 'Contracts'},
-  {name: 'Invoices', icon: '🧾', route: 'Invoices'},
   {name: 'Delivery Receipt', icon: '📖', route: 'DeliveryReceipt'},
   {name: 'STOPs/Optouts', icon: '🛟', route: 'Stops'},
   {name: 'Blacklist', icon: '🚫', route: 'Blacklist'},

@@ -1,4 +1,9 @@
-import React, {useState} from 'react';
+/**
+ * SMS Wallet Screen
+ * View wallet balance and manage notification settings
+ */
+
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -8,25 +13,38 @@ import {
   StatusBar,
   Alert,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
+import {
+  getWalletData,
+  updateWalletSettings,
+  formatCurrency,
+  WalletData,
+} from '../services/walletService';
 
 interface SMSWalletScreenProps {
-  navigation: {
-    navigate: (screen: string) => void;
-    openDrawer: () => void;
-    goBack: () => void;
-  };
+  navigation: any;
 }
 
 const SMSWalletScreen: React.FC<SMSWalletScreenProps> = ({navigation}) => {
+  const onMenuPress = () => navigation.openDrawer();
+  // Loading states
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Data
+  const [walletData, setWalletData] = useState<WalletData | null>(null);
+
   // Form State
   const [emailReminder, setEmailReminder] = useState(false);
   const [minimumBalance, setMinimumBalance] = useState('10.00');
   const [reminderPeriod, setReminderPeriod] = useState('1');
-  const [immediateAlert, setImmediateAlert] = useState(true);
-  const [notificationEmail, setNotificationEmail] = useState('test@nedholdings.com');
+  const [immediateAlert, setImmediateAlert] = useState(false);
+  const [notificationEmail, setNotificationEmail] = useState('');
   const [showReminderDropdown, setShowReminderDropdown] = useState(false);
 
   const reminderOptions = Array.from({length: 14}, (_, i) => ({
@@ -34,56 +52,130 @@ const SMSWalletScreen: React.FC<SMSWalletScreenProps> = ({navigation}) => {
     label: `${i + 1} day${i > 0 ? 's' : ''}`,
   }));
 
-  const handleNotificationPress = () => {
-    Alert.alert('Notifications', 'You have 3 new notifications');
-  };
+  const fetchData = useCallback(async () => {
+    try {
+      const response = await getWalletData();
+      if (response.success && response.data) {
+        setWalletData(response.data);
+        
+        // Set form values from API data
+        if (response.data.daily_notification_settings) {
+          setEmailReminder(response.data.daily_notification_settings.email_reminder_enabled);
+          setMinimumBalance(String(response.data.daily_notification_settings.minimum_balance || 0));
+          setReminderPeriod(String(response.data.daily_notification_settings.reminder_period_days || 1));
+        }
+        
+        if (response.data.immediate_notification_settings) {
+          setImmediateAlert(response.data.immediate_notification_settings.immediate_email_enabled);
+          setNotificationEmail(response.data.immediate_notification_settings.notification_email || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching wallet data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
-  const handleSaveSettings = () => {
-    Alert.alert(
-      'Settings Saved',
-      'Your SMS Wallet notification settings have been updated successfully.',
-      [{text: 'OK'}]
-    );
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData();
+  }, [fetchData]);
+
+  const handleSaveSettings = async () => {
+    setSaving(true);
+    try {
+      const response = await updateWalletSettings({
+        email_reminder_enabled: emailReminder,
+        minimum_balance: parseFloat(minimumBalance) || 0,
+        reminder_period_days: parseInt(reminderPeriod, 10) || 1,
+        immediate_email_enabled: immediateAlert,
+        notification_email: notificationEmail,
+      });
+
+      if (response.success) {
+        Alert.alert(
+          'Settings Saved',
+          'Your SMS Wallet notification settings have been updated successfully.',
+          [{text: 'OK'}],
+        );
+      } else {
+        Alert.alert('Error', response.message || 'Failed to save settings');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleResetForm = () => {
-    setEmailReminder(false);
-    setMinimumBalance('10.00');
-    setReminderPeriod('1');
-    setImmediateAlert(true);
-    setNotificationEmail('test@nedholdings.com');
-    Alert.alert('Form Reset', 'All settings have been reset to default values.');
+    if (walletData) {
+      if (walletData.daily_notification_settings) {
+        setEmailReminder(walletData.daily_notification_settings.email_reminder_enabled);
+        setMinimumBalance(String(walletData.daily_notification_settings.minimum_balance || 0));
+        setReminderPeriod(String(walletData.daily_notification_settings.reminder_period_days || 1));
+      }
+      
+      if (walletData.immediate_notification_settings) {
+        setImmediateAlert(walletData.immediate_notification_settings.immediate_email_enabled);
+        setNotificationEmail(walletData.immediate_notification_settings.notification_email || '');
+      }
+    }
+    Alert.alert('Form Reset', 'Settings have been reset to saved values.');
   };
 
   const handleBuySMS = () => {
-    Alert.alert('Buy SMS', 'Redirecting to purchase page...');
+    navigation.navigate('BuySms');
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+        <Header title="SMS Wallet" onMenuPress={onMenuPress} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ea6118" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#293B50" />
 
-      {/* Header */}
-      <Header
-        title="SMS Wallet"
-        onMenuPress={() => navigation.openDrawer()}
-        onNotificationPress={handleNotificationPress}
-        notificationCount={3}
-        walletBalance="£6859"
-      />
+      <Header title="SMS Wallet" onMenuPress={onMenuPress} />
 
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#ea6118']}
+          />
+        }
         contentContainerStyle={styles.scrollContent}>
 
         {/* Wallet Balance Card */}
         <View style={styles.walletCard}>
           <View style={styles.walletHeader}>
             <View style={styles.walletHeaderLeft}>
-              <Text style={styles.welcomeText}>Welcome, Customer!</Text>
+              <Text style={styles.welcomeText}>
+                Welcome, {walletData?.user?.name || 'Customer'}!
+              </Text>
               <Text style={styles.balanceLabel}>Current SMS Wallet Balance</Text>
-              <Text style={styles.walletBalance}>£ 6859.83</Text>
+              <Text style={styles.walletBalance}>
+                {formatCurrency(walletData?.wallet?.balance || 0)}
+              </Text>
               <Text style={styles.balanceSubtext}>
                 Available for pre-purchased SMS text messages
               </Text>
@@ -289,13 +381,41 @@ const SMSWalletScreen: React.FC<SMSWalletScreenProps> = ({navigation}) => {
         {/* Action Buttons */}
         <View style={styles.actionCard}>
           <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveSettings}>
-              <Text style={styles.saveButtonIcon}>💾</Text>
-              <Text style={styles.saveButtonText}>Save Settings</Text>
+            <TouchableOpacity
+              style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+              onPress={handleSaveSettings}
+              disabled={saving}>
+              {saving ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.saveButtonIcon}>💾</Text>
+                  <Text style={styles.saveButtonText}>Save Settings</Text>
+                </>
+              )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.resetButton} onPress={handleResetForm}>
               <Text style={styles.resetButtonIcon}>🔄</Text>
               <Text style={styles.resetButtonText}>Reset Form</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActionsCard}>
+          <Text style={styles.quickActionsTitle}>Quick Actions</Text>
+          <View style={styles.quickActionButtons}>
+            <TouchableOpacity
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('BuySms')}>
+              <Text style={styles.quickActionIcon}>🛒</Text>
+              <Text style={styles.quickActionText}>Buy SMS</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickActionButton}
+              onPress={() => navigation.navigate('Invoices')}>
+              <Text style={styles.quickActionIcon}>🧾</Text>
+              <Text style={styles.quickActionText}>View Invoices</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -310,11 +430,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#293B50',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#64748b',
+  },
   content: {
     flex: 1,
     backgroundColor: '#f8fafc',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
   },
   scrollContent: {
     padding: 16,
@@ -637,6 +766,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    marginBottom: 16,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -650,6 +780,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 10,
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
   saveButtonIcon: {
     fontSize: 16,
@@ -683,6 +816,42 @@ const styles = StyleSheet.create({
     color: '#ea6118',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  // Quick Actions
+  quickActionsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  quickActionsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#293B50',
+    marginBottom: 12,
+  },
+  quickActionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickActionButton: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  quickActionIcon: {
+    fontSize: 28,
+    marginBottom: 8,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#293B50',
   },
 });
 
