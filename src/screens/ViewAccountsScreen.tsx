@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100, // Space for FAB
+    paddingBottom: 100,
   },
   // Page Header
   pageHeader: {
