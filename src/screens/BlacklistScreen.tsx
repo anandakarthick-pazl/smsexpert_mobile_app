@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -8,64 +8,153 @@ import {
   StatusBar,
   Alert,
   Modal,
+  ActivityIndicator,
+  RefreshControl,
+  Share,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
+import {
+  getBlacklist,
+  unblockNumber,
+  downloadBlacklist,
+  convertCsvToString,
+  BlacklistItem,
+  BlacklistStatistics,
+} from '../services/blacklistService';
 
 interface BlacklistScreenProps {
   navigation: any;
 }
 
-interface BlacklistItem {
-  id: number;
-  phoneNumber: string;
-  blockedDate: string;
-  status: 'blocked';
-}
-
 const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showInfoSheet, setShowInfoSheet] = useState(false);
+  const [unblocking, setUnblocking] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState(false);
   
-  // Blacklist data
-  const [blacklistItems, setBlacklistItems] = useState<BlacklistItem[]>([
-    {id: 1, phoneNumber: '447451234567', blockedDate: '09 Jun 2025, 15:04', status: 'blocked'},
-    {id: 2, phoneNumber: '447457654321', blockedDate: '09 Jun 2025, 15:04', status: 'blocked'},
-    {id: 3, phoneNumber: '447901234567', blockedDate: '09 Jun 2025, 15:04', status: 'blocked'},
-    {id: 5, phoneNumber: '447740673828', blockedDate: '19 Aug 2025, 08:58', status: 'blocked'},
-  ]);
+  // Data
+  const [blacklistItems, setBlacklistItems] = useState<BlacklistItem[]>([]);
+  const [statistics, setStatistics] = useState<BlacklistStatistics>({
+    total_blacklisted: 0,
+    added_this_month: 0,
+    added_this_week: 0,
+  });
 
-  // Statistics
-  const stats = {
-    totalBlacklisted: blacklistItems.length,
-    addedThisMonth: 0,
-    addedThisWeek: 0,
+  const fetchBlacklist = useCallback(async () => {
+    try {
+      const response = await getBlacklist();
+      if (response.success && response.data) {
+        setBlacklistItems(response.data.items || []);
+        setStatistics(response.data.statistics || {
+          total_blacklisted: 0,
+          added_this_month: 0,
+          added_this_week: 0,
+        });
+      } else {
+        // If error, show message but don't crash
+        console.error('Failed to fetch blacklist:', response.message);
+      }
+    } catch (error: any) {
+      console.error('Error fetching blacklist:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchBlacklist();
+  }, [fetchBlacklist]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchBlacklist();
   };
 
   const handleUnblock = (item: BlacklistItem) => {
     Alert.alert(
       'Unblock Number',
-      `Are you sure you want to unblock ${item.phoneNumber}?`,
+      `Are you sure you want to unblock ${item.phone_number}?`,
       [
         {text: 'Cancel', style: 'cancel'},
         {
           text: 'Unblock',
           style: 'destructive',
-          onPress: () => {
-            setBlacklistItems(prev => prev.filter(i => i.id !== item.id));
-            Alert.alert('Success', `${item.phoneNumber} has been unblocked.`);
+          onPress: async () => {
+            setUnblocking(item.id);
+            try {
+              const response = await unblockNumber(item.id);
+              if (response.success) {
+                // Remove from local state
+                setBlacklistItems(prev => prev.filter(i => i.id !== item.id));
+                // Update statistics
+                setStatistics(prev => ({
+                  ...prev,
+                  total_blacklisted: Math.max(0, prev.total_blacklisted - 1),
+                }));
+                Alert.alert('Success', response.message || `${item.phone_number} has been unblocked.`);
+              } else {
+                Alert.alert('Error', response.message || 'Failed to unblock number');
+              }
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to unblock number');
+            } finally {
+              setUnblocking(null);
+            }
           },
         },
       ]
     );
   };
 
-  const handleDownload = () => {
-    Alert.alert(
-      'Download Started',
-      'Preparing backup of all blacklisted numbers...',
-      [{text: 'OK'}]
-    );
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const response = await downloadBlacklist();
+      if (response.success && response.data) {
+        const csvString = convertCsvToString(response.data.csv_data);
+        
+        // Use Share API to share/save the data
+        await Share.share({
+          message: csvString,
+          title: response.data.filename,
+        });
+        
+        Alert.alert(
+          'Download Ready',
+          `Blacklist data with ${response.data.total_records} records is ready to share.`
+        );
+      } else {
+        Alert.alert('Error', response.message || 'No data available to download');
+      }
+    } catch (error: any) {
+      if (error.message !== 'Share dismissed') {
+        Alert.alert('Error', error.message || 'Failed to download blacklist');
+      }
+    } finally {
+      setDownloading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+        <Header 
+          title="Blacklist" 
+          onMenuPress={() => navigation.openDrawer()}
+          walletBalance="£6,859.83"
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ea6118" />
+          <Text style={styles.loadingText}>Loading blacklist...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -79,7 +168,15 @@ const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#ea6118']}
+            tintColor="#ea6118"
+          />
+        }>
         
         {/* Header Card */}
         <View style={styles.headerCard}>
@@ -97,15 +194,15 @@ const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
         {/* Statistics Cards */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, styles.statCardRed]}>
-            <Text style={styles.statNumber}>{stats.totalBlacklisted}</Text>
+            <Text style={styles.statNumber}>{statistics.total_blacklisted}</Text>
             <Text style={styles.statLabel}>Total Blacklisted</Text>
           </View>
           <View style={[styles.statCard, styles.statCardOrange]}>
-            <Text style={[styles.statNumber, styles.statNumberOrange]}>{stats.addedThisMonth}</Text>
+            <Text style={[styles.statNumber, styles.statNumberOrange]}>{statistics.added_this_month}</Text>
             <Text style={styles.statLabel}>This Month</Text>
           </View>
           <View style={[styles.statCard, styles.statCardBlue]}>
-            <Text style={[styles.statNumber, styles.statNumberBlue]}>{stats.addedThisWeek}</Text>
+            <Text style={[styles.statNumber, styles.statNumberBlue]}>{statistics.added_this_week}</Text>
             <Text style={styles.statLabel}>This Week</Text>
           </View>
         </View>
@@ -115,6 +212,7 @@ const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
           <View style={styles.cardHeader}>
             <Text style={styles.cardHeaderIcon}>📋</Text>
             <Text style={styles.cardHeaderTitle}>Blacklisted Numbers</Text>
+            <Text style={styles.cardHeaderCount}>{blacklistItems.length}</Text>
           </View>
           
           {/* Table Header */}
@@ -143,19 +241,27 @@ const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
                   index === blacklistItems.length - 1 && styles.tableRowLast
                 ]}>
                 <View style={styles.phoneCell}>
-                  <Text style={styles.phoneNumber}>{item.phoneNumber}</Text>
+                  <Text style={styles.phoneNumber}>{item.phone_number}</Text>
                   <View style={styles.statusBadge}>
                     <Text style={styles.statusText}>Blocked</Text>
                   </View>
                 </View>
                 <View style={styles.dateCell}>
-                  <Text style={styles.dateText}>{item.blockedDate}</Text>
+                  <Text style={styles.dateText}>{item.blocked_date}</Text>
                 </View>
                 <View style={styles.actionCell}>
                   <TouchableOpacity 
-                    style={styles.unblockButton}
-                    onPress={() => handleUnblock(item)}>
-                    <Text style={styles.unblockButtonText}>Unblock</Text>
+                    style={[
+                      styles.unblockButton,
+                      unblocking === item.id && styles.unblockButtonDisabled
+                    ]}
+                    onPress={() => handleUnblock(item)}
+                    disabled={unblocking === item.id}>
+                    {unblocking === item.id ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.unblockButtonText}>Unblock</Text>
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
@@ -179,11 +285,21 @@ const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
             Download a complete backup of all blacklisted numbers for your records.
           </Text>
           <TouchableOpacity 
-            style={styles.downloadButton}
-            onPress={handleDownload}>
-            <Text style={styles.downloadButtonIcon}>⬇️</Text>
-            <Text style={styles.downloadButtonText}>Download All Records</Text>
+            style={[styles.downloadButton, downloading && styles.downloadButtonDisabled]}
+            onPress={handleDownload}
+            disabled={downloading || blacklistItems.length === 0}>
+            {downloading ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <>
+                <Text style={styles.downloadButtonIcon}>⬇️</Text>
+                <Text style={styles.downloadButtonText}>Download All Records</Text>
+              </>
+            )}
           </TouchableOpacity>
+          {blacklistItems.length === 0 && (
+            <Text style={styles.downloadNote}>No records available to download</Text>
+          )}
         </View>
 
       </ScrollView>
@@ -279,7 +395,6 @@ const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
               <TouchableOpacity
                 style={styles.closeSheetButton}
                 onPress={() => setShowInfoSheet(false)}>
-                <Text style={styles.closeSheetButtonIcon}>✕</Text>
                 <Text style={styles.closeSheetButtonText}>Close</Text>
               </TouchableOpacity>
             </View>
@@ -299,10 +414,25 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   scrollContent: {
     padding: 16,
     paddingBottom: 30,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748b',
   },
   // Header Card
   headerCard: {
@@ -431,6 +561,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#293B50',
+    flex: 1,
+  },
+  cardHeaderCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+    backgroundColor: '#e2e8f0',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
   // Table Styles
   tableHeader: {
@@ -507,6 +647,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    minWidth: 70,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 28,
+  },
+  unblockButtonDisabled: {
+    backgroundColor: '#94a3b8',
   },
   unblockButtonText: {
     fontSize: 11,
@@ -574,6 +721,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+    minHeight: 50,
+  },
+  downloadButtonDisabled: {
+    backgroundColor: '#94a3b8',
   },
   downloadButtonIcon: {
     fontSize: 16,
@@ -583,6 +734,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#ffffff',
+  },
+  downloadNote: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginTop: 10,
   },
   // Modal Styles
   modalOverlay: {
@@ -641,24 +798,16 @@ const styles = StyleSheet.create({
     borderTopColor: '#e2e8f0',
   },
   closeSheetButton: {
-    backgroundColor: '#f1f5f9',
-    flexDirection: 'row',
+    backgroundColor: '#ea6118',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  closeSheetButtonIcon: {
-    fontSize: 14,
-    marginRight: 8,
-    color: '#64748b',
   },
   closeSheetButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#ffffff',
   },
   // Info Section Styles
   infoSection: {

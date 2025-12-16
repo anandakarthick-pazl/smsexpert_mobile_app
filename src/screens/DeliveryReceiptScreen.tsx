@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -9,57 +9,171 @@ import {
   Alert,
   Modal,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
+import {
+  getDeliveryReceiptSettings,
+  updateDeliveryReceiptUrl,
+  testDeliveryReceipt,
+  DeliveryReceiptSettings,
+  TestResult,
+} from '../services/deliveryReceiptService';
 
 interface DeliveryReceiptScreenProps {
   navigation: any;
 }
 
 const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation}) => {
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [showInfoSheet, setShowInfoSheet] = useState(false);
+  const [showTestResultModal, setShowTestResultModal] = useState(false);
   
-  // URL Configuration
-  const [deliveryUrl, setDeliveryUrl] = useState('https://ptsv3.com/storacall');
-  
-  // Test form data (readonly)
-  const [msisdn] = useState('447777111111');
-  const [submissionRef] = useState('12345678901234567890123456789012');
-
-  // Connection settings
-  const connectionSettings = {
+  // Settings data
+  const [deliveryUrl, setDeliveryUrl] = useState('');
+  const [connectionSettings, setConnectionSettings] = useState({
     attempts: 1,
-    pauseMinutes: 10,
+    pause_minutes: 10,
+  });
+  
+  // Test form data
+  const [msisdn, setMsisdn] = useState('447777111111');
+  const [submissionRef, setSubmissionRef] = useState('12345678901234567890123456789012');
+  
+  // Test result
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const response = await getDeliveryReceiptSettings();
+      if (response.success && response.data) {
+        setDeliveryUrl(response.data.delivery_url || '');
+        setConnectionSettings(response.data.connection_settings || {
+          attempts: 1,
+          pause_minutes: 10,
+        });
+        if (response.data.test_defaults) {
+          setMsisdn(response.data.test_defaults.msisdn || '447777111111');
+          setSubmissionRef(response.data.test_defaults.submission_reference || '12345678901234567890123456789012');
+        }
+      }
+    } catch (error: any) {
+      console.error('Error fetching settings:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchSettings();
   };
 
-  const handleUpdateConfiguration = () => {
+  const validateURL = (url: string): boolean => {
+    if (!url.trim()) {
+      Alert.alert('Error', 'Please enter a URL');
+      return false;
+    }
+    
+    // Basic URL validation
+    const urlPattern = /^https?:\/\/.+/i;
+    if (!urlPattern.test(url)) {
+      Alert.alert('Invalid URL', 'Please enter a valid URL starting with http:// or https://');
+      return false;
+    }
+    
+    return true;
+  };
+
+  const handleUpdateConfiguration = async () => {
+    if (!validateURL(deliveryUrl)) {
+      return;
+    }
+    
+    setUpdating(true);
+    try {
+      const response = await updateDeliveryReceiptUrl(deliveryUrl);
+      if (response.success) {
+        Alert.alert(
+          'Success',
+          'Delivery receipt URL has been updated successfully.',
+          [{text: 'OK'}]
+        );
+        if (response.data?.delivery_url) {
+          setDeliveryUrl(response.data.delivery_url);
+        }
+      } else {
+        Alert.alert('Error', response.message || 'Failed to update configuration');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update configuration');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleSubmitTest = async () => {
     if (!deliveryUrl.trim()) {
-      Alert.alert('Error', 'Please enter a valid URL');
+      Alert.alert('No URL Configured', 'Please configure a delivery receipt URL first.');
       return;
     }
     
-    // URL validation
-    const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
-    if (!urlPattern.test(deliveryUrl)) {
-      Alert.alert('Invalid URL', 'Please enter a valid URL.');
-      return;
+    setTesting(true);
+    try {
+      const response = await testDeliveryReceipt(msisdn, submissionRef);
+      if (response.success && response.data) {
+        setTestResult(response.data);
+        setShowTestResultModal(true);
+      } else {
+        Alert.alert('Error', response.message || 'Failed to send test');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to send test');
+    } finally {
+      setTesting(false);
     }
-    
-    Alert.alert(
-      'Configuration Updated',
-      'Delivery receipt URL has been updated successfully.',
-      [{text: 'OK'}]
-    );
   };
 
-  const handleSubmitTest = () => {
-    Alert.alert(
-      'Test Submitted',
-      'A fake "success" delivery receipt call has been sent to your server. Check your server logs for the response.',
-      [{text: 'OK'}]
-    );
+  const getTestResultStatusColor = () => {
+    if (!testResult) return '#64748b';
+    if (testResult.success) return '#16a34a';
+    if (testResult.error) return '#dc2626';
+    return '#f59e0b';
   };
+
+  const getTestResultIcon = () => {
+    if (!testResult) return '❓';
+    if (testResult.success) return '✅';
+    if (testResult.error) return '❌';
+    return '⚠️';
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+        <Header 
+          title="Delivery Receipt" 
+          onMenuPress={() => navigation.openDrawer()}
+          walletBalance="£6,859.83"
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ea6118" />
+          <Text style={styles.loadingText}>Loading settings...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -73,13 +187,24 @@ const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#ea6118']}
+            tintColor="#ea6118"
+          />
+        }>
         
         {/* Header Card */}
         <View style={styles.headerCard}>
           <View style={styles.headerLeft}>
             <Text style={styles.headerIcon}>📋</Text>
-            <Text style={styles.headerTitle}>Delivery Receipt</Text>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Delivery Receipt</Text>
+              <Text style={styles.headerSubtitle}>Configure webhook URL for delivery status</Text>
+            </View>
           </View>
           <TouchableOpacity
             style={styles.infoButton}
@@ -105,31 +230,39 @@ const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation
                 style={styles.input}
                 value={deliveryUrl}
                 onChangeText={setDeliveryUrl}
-                placeholder="Enter your URL"
+                placeholder="Enter your URL (e.g., https://your-server.com/webhook)"
                 placeholderTextColor="#94a3b8"
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"
+                editable={!updating}
               />
             </View>
 
             <TouchableOpacity 
-              style={styles.updateButton}
-              onPress={handleUpdateConfiguration}>
-              <Text style={styles.updateButtonIcon}>🔄</Text>
-              <Text style={styles.updateButtonText}>Update Configuration</Text>
+              style={[styles.updateButton, updating && styles.disabledButton]}
+              onPress={handleUpdateConfiguration}
+              disabled={updating}>
+              {updating ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <>
+                  <Text style={styles.updateButtonIcon}>🔄</Text>
+                  <Text style={styles.updateButtonText}>Update Configuration</Text>
+                </>
+              )}
             </TouchableOpacity>
 
             {/* Connection Settings Info */}
             <View style={styles.infoCard}>
-              <Text style={styles.infoCardTitle}>Connection Settings:</Text>
+              <Text style={styles.infoCardTitle}>⚡ Connection Settings:</Text>
               <View style={styles.infoRow}>
                 <Text style={styles.infoText}>Number of connection attempts:</Text>
                 <Text style={styles.infoHighlight}>{connectionSettings.attempts}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoText}>Pause between retries:</Text>
-                <Text style={styles.infoHighlight}>{connectionSettings.pauseMinutes} minutes</Text>
+                <Text style={styles.infoHighlight}>{connectionSettings.pause_minutes} minutes</Text>
               </View>
             </View>
           </View>
@@ -143,20 +276,18 @@ const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation
           </View>
           
           <View style={styles.cardBody}>
-            <View style={styles.inputRow}>
-              <View style={styles.inputHalf}>
-                <View style={styles.labelRow}>
-                  <Text style={styles.labelIcon}>📱</Text>
-                  <Text style={styles.label}>MSISDN</Text>
-                </View>
-                <TextInput
-                  style={[styles.input, styles.readonlyInput]}
-                  value={msisdn}
-                  editable={false}
-                  placeholder="Enter your MSISDN"
-                  placeholderTextColor="#94a3b8"
-                />
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.labelIcon}>📱</Text>
+                <Text style={styles.label}>MSISDN</Text>
               </View>
+              <TextInput
+                style={[styles.input, styles.readonlyInput]}
+                value={msisdn}
+                editable={false}
+                placeholder="Enter your MSISDN"
+                placeholderTextColor="#94a3b8"
+              />
             </View>
 
             <View style={styles.inputGroup}>
@@ -174,10 +305,17 @@ const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation
             </View>
 
             <TouchableOpacity 
-              style={styles.submitButton}
-              onPress={handleSubmitTest}>
-              <Text style={styles.submitButtonIcon}>📤</Text>
-              <Text style={styles.submitButtonText}>Submit Test</Text>
+              style={[styles.submitButton, testing && styles.disabledButton]}
+              onPress={handleSubmitTest}
+              disabled={testing}>
+              {testing ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <>
+                  <Text style={styles.submitButtonIcon}>📤</Text>
+                  <Text style={styles.submitButtonText}>Submit Test</Text>
+                </>
+              )}
             </TouchableOpacity>
 
             {/* Test Info */}
@@ -191,6 +329,100 @@ const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation
         </View>
 
       </ScrollView>
+
+      {/* Test Result Modal */}
+      <Modal
+        visible={showTestResultModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowTestResultModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.resultModalContainer}>
+            {/* Modal Header */}
+            <View style={[styles.resultModalHeader, {backgroundColor: getTestResultStatusColor()}]}>
+              <View style={styles.resultModalTitleRow}>
+                <Text style={styles.resultModalIcon}>{getTestResultIcon()}</Text>
+                <Text style={styles.resultModalTitle}>Test Result</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setShowTestResultModal(false)}>
+                <Text style={styles.modalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Modal Body */}
+            <ScrollView style={styles.resultModalBody} showsVerticalScrollIndicator={false}>
+              {testResult && (
+                <>
+                  {/* Status */}
+                  <View style={styles.resultSection}>
+                    <Text style={styles.resultSectionTitle}>Status</Text>
+                    <View style={[styles.statusBadge, {backgroundColor: getTestResultStatusColor()}]}>
+                      <Text style={styles.statusBadgeText}>
+                        {testResult.success ? 'SUCCESS' : testResult.error ? 'FAILED' : 'WARNING'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* URL */}
+                  <View style={styles.resultSection}>
+                    <Text style={styles.resultSectionTitle}>Target URL</Text>
+                    <Text style={styles.resultValue} numberOfLines={2}>{testResult.url}</Text>
+                  </View>
+
+                  {/* Response Status */}
+                  {testResult.response_status && (
+                    <View style={styles.resultSection}>
+                      <Text style={styles.resultSectionTitle}>HTTP Status Code</Text>
+                      <Text style={styles.resultValue}>{testResult.response_status}</Text>
+                    </View>
+                  )}
+
+                  {/* Error Message */}
+                  {testResult.error && (
+                    <View style={styles.resultSection}>
+                      <Text style={styles.resultSectionTitle}>Error</Text>
+                      <View style={styles.errorBox}>
+                        <Text style={styles.errorText}>{testResult.error}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Response Body */}
+                  {testResult.response_body && (
+                    <View style={styles.resultSection}>
+                      <Text style={styles.resultSectionTitle}>Response Body</Text>
+                      <View style={styles.codeBox}>
+                        <Text style={styles.codeText}>{testResult.response_body}</Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Payload Sent */}
+                  <View style={styles.resultSection}>
+                    <Text style={styles.resultSectionTitle}>Payload Sent</Text>
+                    <View style={styles.codeBox}>
+                      <Text style={styles.codeText}>
+                        {JSON.stringify(testResult.payload_sent, null, 2)}
+                      </Text>
+                    </View>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+
+            {/* Modal Footer */}
+            <View style={styles.resultModalFooter}>
+              <TouchableOpacity
+                style={styles.closeResultButton}
+                onPress={() => setShowTestResultModal(false)}>
+                <Text style={styles.closeResultButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Info Bottom Sheet Modal */}
       <Modal
@@ -276,6 +508,21 @@ const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation
                 </View>
               </View>
 
+              {/* Payload Format */}
+              <View style={styles.infoSection}>
+                <View style={styles.infoSectionHeader}>
+                  <View style={[styles.infoSectionIconBox, styles.orangeBg]}>
+                    <Text style={styles.infoSectionIcon}>📦</Text>
+                  </View>
+                  <Text style={styles.infoSectionTitle}>Payload Format</Text>
+                </View>
+                <View style={[styles.infoSectionContent, styles.orangeBorder]}>
+                  <Text style={styles.infoSectionText}>
+                    The delivery receipt payload includes: msisdn, submission_reference, status, status_code, status_text, delivery_time, and timestamp.
+                  </Text>
+                </View>
+              </View>
+
             </ScrollView>
 
             {/* Modal Footer */}
@@ -283,7 +530,6 @@ const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation
               <TouchableOpacity
                 style={styles.closeSheetButton}
                 onPress={() => setShowInfoSheet(false)}>
-                <Text style={styles.closeSheetButtonIcon}>✕</Text>
                 <Text style={styles.closeSheetButtonText}>Close</Text>
               </TouchableOpacity>
             </View>
@@ -303,10 +549,25 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   scrollContent: {
     padding: 16,
     paddingBottom: 30,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748b',
   },
   // Header Card
   headerCard: {
@@ -328,15 +589,24 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   headerIcon: {
-    fontSize: 20,
-    marginRight: 10,
+    fontSize: 24,
+    marginRight: 12,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#293B50',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 2,
   },
   infoButton: {
     width: 36,
@@ -390,14 +660,6 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 16,
   },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  inputHalf: {
-    flex: 1,
-  },
   labelRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -441,6 +703,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+    minHeight: 50,
   },
   updateButtonIcon: {
     fontSize: 16,
@@ -464,6 +727,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+    minHeight: 50,
   },
   submitButtonIcon: {
     fontSize: 16,
@@ -473,6 +737,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#ffffff',
+  },
+  disabledButton: {
+    backgroundColor: '#94a3b8',
   },
   // Info Card Styles
   infoCard: {
@@ -526,6 +793,103 @@ const styles = StyleSheet.create({
   },
   testInfoBold: {
     fontWeight: '700',
+  },
+  // Test Result Modal
+  resultModalContainer: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+  },
+  resultModalHeader: {
+    padding: 20,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  resultModalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  resultModalIcon: {
+    fontSize: 24,
+    marginRight: 10,
+  },
+  resultModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  resultModalBody: {
+    padding: 20,
+    maxHeight: 400,
+  },
+  resultSection: {
+    marginBottom: 16,
+  },
+  resultSectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  resultValue: {
+    fontSize: 14,
+    color: '#293B50',
+    fontWeight: '500',
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  errorBox: {
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#dc2626',
+    lineHeight: 20,
+  },
+  codeBox: {
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    padding: 12,
+  },
+  codeText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontFamily: 'monospace',
+    lineHeight: 18,
+  },
+  resultModalFooter: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+  },
+  closeResultButton: {
+    backgroundColor: '#293B50',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  closeResultButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   // Modal Styles
   modalOverlay: {
@@ -584,24 +948,15 @@ const styles = StyleSheet.create({
     borderTopColor: '#e2e8f0',
   },
   closeSheetButton: {
-    backgroundColor: '#f1f5f9',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#ea6118',
     paddingVertical: 14,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  closeSheetButtonIcon: {
-    fontSize: 14,
-    marginRight: 8,
-    color: '#64748b',
+    alignItems: 'center',
   },
   closeSheetButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#64748b',
+    color: '#ffffff',
   },
   // Info Section Styles
   infoSection: {
@@ -632,6 +987,9 @@ const styles = StyleSheet.create({
   purpleBg: {
     backgroundColor: '#ede9fe',
   },
+  orangeBg: {
+    backgroundColor: '#ffedd5',
+  },
   infoSectionIcon: {
     fontSize: 18,
   },
@@ -658,6 +1016,9 @@ const styles = StyleSheet.create({
   },
   purpleBorder: {
     borderLeftColor: '#8b5cf6',
+  },
+  orangeBorder: {
+    borderLeftColor: '#ea6118',
   },
   infoSectionText: {
     fontSize: 14,

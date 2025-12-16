@@ -22,6 +22,7 @@ import InvoiceDetailScreen from './src/screens/InvoiceDetailScreen';
 import BuySmsScreen from './src/screens/BuySmsScreen';
 import DeliveryReceiptScreen from './src/screens/DeliveryReceiptScreen';
 import BlacklistScreen from './src/screens/BlacklistScreen';
+import StopCommandsScreen from './src/screens/StopCommandsScreen';
 import ChangePasswordScreen from './src/screens/ChangePasswordScreen';
 import CampaignDashboardScreen from './src/screens/CampaignDashboardScreen';
 import QuickCampaignScreen from './src/screens/QuickCampaignScreen';
@@ -488,6 +489,8 @@ function AppContent(): React.JSX.Element {
         return <BuySmsScreen navigation={navigation} />;
       case 'DeliveryReceipt':
         return <DeliveryReceiptScreen navigation={navigation} />;
+      case 'Stops':
+        return <StopCommandsScreen navigation={navigation} />;
       case 'Blacklist':
         return <BlacklistScreen navigation={navigation} />;
       case 'ChangePassword':

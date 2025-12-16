@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,19 @@ import {
   Alert,
   Modal,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
+import {
+  getProfile,
+  updateProfile,
+  changePassword,
+  addIpToWhitelist,
+  removeIpFromWhitelist,
+  ProfileData,
+} from '../services/profileService';
 
 interface ProfileScreenProps {
   navigation: {
@@ -21,52 +31,76 @@ interface ProfileScreenProps {
   };
 }
 
-interface ProfileData {
-  serviceDescription: string;
-  businessName: string;
-  contactName: string;
-  address1: string;
-  address2: string;
-  town: string;
-  country: string;
-  postCode: string;
-  mobileNumber: string;
-  phoneNumber: string;
-  email: string;
-  defaultSenderId: string;
-}
-
 const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
   const [showSenderIdInfo, setShowSenderIdInfo] = useState(false);
   const [showPasswordInfo, setShowPasswordInfo] = useState(false);
   const [showIpInfo, setShowIpInfo] = useState(false);
   const [showWelcomeInfo, setShowWelcomeInfo] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Profile form data
   const [profileData, setProfileData] = useState<ProfileData>({
-    serviceDescription: 'My SMS Expert Account.',
-    businessName: 'Customer',
-    contactName: 'Customer',
-    address1: 'chennai',
+    service_description: '',
+    business_name: '',
+    contact_name: '',
+    address1: '',
     address2: '',
-    town: 'chennai',
+    town: '',
     country: '',
-    postCode: '609312',
-    mobileNumber: '',
-    phoneNumber: '917094514970',
-    email: 'sabariraja@nedholdings.com',
-    defaultSenderId: 'MYBRANDNAME',
+    postcode: '',
+    mobile_number: '',
+    phone_number: '',
+    email: '',
+    default_sender_id: 'MYBRANDNAME',
+    account_expiry: 'Not Set',
+    username: '',
   });
+
+  // Limits
+  const [dailySmsLimit, setDailySmsLimit] = useState(100000);
+  const [pushDeliveryActive, setPushDeliveryActive] = useState(false);
 
   // Password fields
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // IP List
   const [ipList, setIpList] = useState<string[]>([]);
   const [newIp, setNewIp] = useState('');
+  const [addingIp, setAddingIp] = useState(false);
+  const [removingIp, setRemovingIp] = useState<string | null>(null);
+
+  const fetchProfile = useCallback(async () => {
+    try {
+      const response = await getProfile();
+      if (response.success && response.data) {
+        setProfileData(response.data.profile);
+        setDailySmsLimit(response.data.limits.daily_sms_limit);
+        setIpList(response.data.ip_whitelist);
+        setPushDeliveryActive(response.data.push_delivery_active);
+      } else {
+        Alert.alert('Error', response.message || 'Failed to load profile');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to load profile');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchProfile();
+  };
 
   const handleNotificationPress = () => {
     Alert.alert('Notifications', 'You have 3 new notifications');
@@ -76,54 +110,192 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
     setProfileData(prev => ({...prev, [field]: value}));
   };
 
-  const addIp = () => {
+  const handleAddIp = async () => {
     const ipRegex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
     
-    if (ipRegex.test(newIp)) {
-      if (!ipList.includes(newIp)) {
-        setIpList([...ipList, newIp]);
+    if (!ipRegex.test(newIp)) {
+      Alert.alert('Error', 'Please enter a valid IP address.');
+      return;
+    }
+
+    setAddingIp(true);
+    try {
+      const response = await addIpToWhitelist(newIp);
+      if (response.success) {
+        if (response.data) {
+          setIpList(response.data);
+        } else {
+          setIpList([...ipList, newIp]);
+        }
         setNewIp('');
         Alert.alert('Success', 'IP address added successfully.');
       } else {
-        Alert.alert('Error', 'This IP address is already in the list.');
+        Alert.alert('Error', response.message || 'Failed to add IP address.');
       }
-    } else {
-      Alert.alert('Error', 'Please enter a valid IP address.');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to add IP address.');
+    } finally {
+      setAddingIp(false);
     }
   };
 
-  const deleteIp = (ip: string) => {
-    setIpList(ipList.filter(item => item !== ip));
-    Alert.alert('Success', 'IP address removed successfully.');
+  const handleDeleteIp = async (ip: string) => {
+    Alert.alert(
+      'Remove IP',
+      `Are you sure you want to remove ${ip}?`,
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setRemovingIp(ip);
+            try {
+              const response = await removeIpFromWhitelist(ip);
+              if (response.success) {
+                if (response.data) {
+                  setIpList(response.data);
+                } else {
+                  setIpList(ipList.filter(item => item !== ip));
+                }
+                Alert.alert('Success', 'IP address removed successfully.');
+              } else {
+                Alert.alert('Error', response.message || 'Failed to remove IP address.');
+              }
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to remove IP address.');
+            } finally {
+              setRemovingIp(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
-  const handleSubmit = () => {
+  const handleChangePassword = async () => {
+    if (!currentPassword) {
+      Alert.alert('Error', 'Please enter your current password.');
+      return;
+    }
+    if (!newPassword) {
+      Alert.alert('Error', 'Please enter a new password.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'The new passwords do not match.');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const response = await changePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword,
+      });
+      if (response.success) {
+        Alert.alert('Success', 'Password changed successfully.');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        Alert.alert('Error', response.message || 'Failed to change password.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to change password.');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    // Validate required fields
+    if (!profileData.service_description?.trim()) {
+      Alert.alert('Error', 'Please enter a service description.');
+      return;
+    }
+    if (!profileData.business_name?.trim()) {
+      Alert.alert('Error', 'Please enter a business name.');
+      return;
+    }
+    if (!profileData.contact_name?.trim()) {
+      Alert.alert('Error', 'Please enter a contact name.');
+      return;
+    }
+    if (!profileData.address1?.trim()) {
+      Alert.alert('Error', 'Please enter address line 1.');
+      return;
+    }
+    if (!profileData.town?.trim()) {
+      Alert.alert('Error', 'Please enter a town/city.');
+      return;
+    }
+    if (!profileData.postcode?.trim()) {
+      Alert.alert('Error', 'Please enter a post code.');
+      return;
+    }
+    if (!profileData.phone_number?.trim()) {
+      Alert.alert('Error', 'Please enter a phone number.');
+      return;
+    }
+    if (!profileData.email?.trim()) {
+      Alert.alert('Error', 'Please enter an email address.');
+      return;
+    }
+
     setIsSubmitting(true);
-    
-    // Validate password if current password is entered
-    if (currentPassword) {
-      if (!newPassword || !confirmPassword) {
-        Alert.alert('Error', 'Please fill in both new password fields.');
-        setIsSubmitting(false);
-        return;
-      }
-      if (newPassword !== confirmPassword) {
-        Alert.alert('Error', 'The new passwords do not match.');
-        setIsSubmitting(false);
-        return;
-      }
-    }
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await updateProfile({
+        service_description: profileData.service_description,
+        business_name: profileData.business_name,
+        contact_name: profileData.contact_name,
+        address1: profileData.address1,
+        address2: profileData.address2,
+        town: profileData.town,
+        country: profileData.country,
+        postcode: profileData.postcode,
+        mobile_number: profileData.mobile_number,
+        phone_number: profileData.phone_number,
+        email: profileData.email,
+        default_sender_id: profileData.default_sender_id,
+      });
+
+      if (response.success) {
+        Alert.alert('Success', response.message || 'Profile updated successfully.');
+      } else {
+        Alert.alert('Error', response.message || 'Failed to update profile.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update profile.');
+    } finally {
       setIsSubmitting(false);
-      Alert.alert(
-        'Success',
-        'Your profile has been updated. A confirmation email has been sent to your email address.',
-        [{text: 'OK'}]
-      );
-    }, 2000);
+    }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+        <Header
+          title="Client Profile"
+          onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={handleNotificationPress}
+          notificationCount={3}
+          walletBalance="£6859"
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ea6118" />
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -140,7 +312,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}>
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#ea6118']}
+            tintColor="#ea6118"
+          />
+        }>
 
         {/* Header Card with Welcome Info Button */}
         <View style={styles.headerCard}>
@@ -149,8 +329,10 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
             <View style={styles.headerTextContainer}>
               <Text style={styles.headerTitle}>Welcome to Your Profile</Text>
               <View style={styles.expiryRow}>
-                <Text style={styles.expiryIcon}>⏰</Text>
-                <Text style={styles.expiryText}>Account Package Expires: Not Set</Text>
+                <Text style={styles.expiryIconSmall}>⏰</Text>
+                <Text style={styles.expiryTextSmall}>
+                  Account Expires: {profileData.account_expiry}
+                </Text>
               </View>
             </View>
           </View>
@@ -176,8 +358,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 style={[styles.formInput, styles.textArea]}
                 multiline
                 numberOfLines={4}
-                value={profileData.serviceDescription}
-                onChangeText={(text) => updateProfileField('serviceDescription', text)}
+                value={profileData.service_description}
+                onChangeText={(text) => updateProfileField('service_description', text)}
                 placeholder="Describe your SMS service usage..."
                 placeholderTextColor="#94a3b8"
               />
@@ -202,8 +384,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 </Text>
                 <TextInput
                   style={styles.formInput}
-                  value={profileData.businessName}
-                  onChangeText={(text) => updateProfileField('businessName', text)}
+                  value={profileData.business_name}
+                  onChangeText={(text) => updateProfileField('business_name', text)}
                   placeholder="Enter business name"
                   placeholderTextColor="#94a3b8"
                 />
@@ -214,8 +396,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 </Text>
                 <TextInput
                   style={styles.formInput}
-                  value={profileData.contactName}
-                  onChangeText={(text) => updateProfileField('contactName', text)}
+                  value={profileData.contact_name}
+                  onChangeText={(text) => updateProfileField('contact_name', text)}
                   placeholder="Enter contact name"
                   placeholderTextColor="#94a3b8"
                 />
@@ -278,8 +460,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 </Text>
                 <TextInput
                   style={styles.formInput}
-                  value={profileData.postCode}
-                  onChangeText={(text) => updateProfileField('postCode', text)}
+                  value={profileData.postcode}
+                  onChangeText={(text) => updateProfileField('postcode', text)}
                   placeholder="Enter post code"
                   placeholderTextColor="#94a3b8"
                 />
@@ -288,8 +470,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 <Text style={styles.formLabel}>Mobile Number</Text>
                 <TextInput
                   style={styles.formInput}
-                  value={profileData.mobileNumber}
-                  onChangeText={(text) => updateProfileField('mobileNumber', text)}
+                  value={profileData.mobile_number}
+                  onChangeText={(text) => updateProfileField('mobile_number', text)}
                   placeholder="Enter mobile number"
                   placeholderTextColor="#94a3b8"
                   keyboardType="phone-pad"
@@ -304,8 +486,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 </Text>
                 <TextInput
                   style={styles.formInput}
-                  value={profileData.phoneNumber}
-                  onChangeText={(text) => updateProfileField('phoneNumber', text)}
+                  value={profileData.phone_number}
+                  onChangeText={(text) => updateProfileField('phone_number', text)}
                   placeholder="Enter phone number"
                   placeholderTextColor="#94a3b8"
                   keyboardType="phone-pad"
@@ -341,7 +523,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
           </View>
           <Text style={styles.limitText}>Each day you are currently allowed to send up to:</Text>
           <View style={styles.limitBadge}>
-            <Text style={styles.limitBadgeText}>100 SMS messages</Text>
+            <Text style={styles.limitBadgeText}>{dailySmsLimit.toLocaleString()} SMS messages</Text>
           </View>
           <Text style={styles.limitNote}>
             To increase your limit, please contact the helpdesk or your account director.
@@ -365,8 +547,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 </View>
                 <TextInput
                   style={styles.formInput}
-                  value={profileData.defaultSenderId}
-                  onChangeText={(text) => updateProfileField('defaultSenderId', text)}
+                  value={profileData.default_sender_id}
+                  onChangeText={(text) => updateProfileField('default_sender_id', text)}
                   placeholder="Enter sender ID"
                   placeholderTextColor="#94a3b8"
                   maxLength={11}
@@ -436,6 +618,20 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                   secureTextEntry
                 />
               </View>
+
+              <TouchableOpacity
+                style={[styles.changePasswordBtn, changingPassword && styles.disabledBtn]}
+                onPress={handleChangePassword}
+                disabled={changingPassword}>
+                {changingPassword ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Text style={styles.changePasswordIcon}>🔐</Text>
+                    <Text style={styles.changePasswordText}>Change Password</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
 
             {/* IP Access Control */}
@@ -456,8 +652,13 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                       <Text style={styles.ipText}>{ip}</Text>
                       <TouchableOpacity 
                         style={styles.ipDeleteBtn}
-                        onPress={() => deleteIp(ip)}>
-                        <Text style={styles.ipDeleteText}>✕</Text>
+                        onPress={() => handleDeleteIp(ip)}
+                        disabled={removingIp === ip}>
+                        {removingIp === ip ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.ipDeleteText}>✕</Text>
+                        )}
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -477,8 +678,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                   placeholderTextColor="#94a3b8"
                   keyboardType="numeric"
                 />
-                <TouchableOpacity style={styles.addIpBtn} onPress={addIp}>
-                  <Text style={styles.addIpText}>➕</Text>
+                <TouchableOpacity
+                  style={[styles.addIpBtn, addingIp && styles.disabledBtn]}
+                  onPress={handleAddIp}
+                  disabled={addingIp}>
+                  {addingIp ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.addIpText}>➕</Text>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -491,12 +699,16 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
             <Text style={styles.pushIcon}>📧</Text>
             <Text style={styles.pushTitle}>Push Delivery Receipts</Text>
           </View>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusIcon}>⏳</Text>
-            <Text style={styles.statusText}>Not Active</Text>
+          <View style={[styles.statusBadge, pushDeliveryActive && styles.statusBadgeActive]}>
+            <Text style={styles.statusIcon}>{pushDeliveryActive ? '✅' : '⏳'}</Text>
+            <Text style={[styles.statusText, pushDeliveryActive && styles.statusTextActive]}>
+              {pushDeliveryActive ? 'Active' : 'Not Active'}
+            </Text>
           </View>
           <Text style={styles.pushText}>
-            Delivery receipt push is not yet active for this account. Contact support to enable this feature.
+            {pushDeliveryActive 
+              ? 'Delivery receipt push is active for this account.'
+              : 'Delivery receipt push is not yet active for this account. Contact support to enable this feature.'}
           </Text>
         </View>
 
@@ -506,11 +718,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
             style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
             onPress={handleSubmit}
             disabled={isSubmitting}>
-            <Text style={styles.submitIcon}>{isSubmitting ? '⏳' : '✅'}</Text>
-            <Text style={styles.submitText}>
-              {isSubmitting ? 'Processing...' : 'Confirm All Details'}
-            </Text>
-            {!isSubmitting && <Text style={styles.submitArrow}>→</Text>}
+            {isSubmitting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.submitIcon}>✅</Text>
+                <Text style={styles.submitText}>Confirm All Details</Text>
+                <Text style={styles.submitArrow}>→</Text>
+              </>
+            )}
           </TouchableOpacity>
           <Text style={styles.submitNote}>
             ℹ️ Changes will require email confirmation before taking effect
@@ -670,7 +886,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
         onRequestClose={() => setShowWelcomeInfo(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.bottomSheetContainer}>
-            {/* Modal Header */}
             <View style={styles.bottomSheetHeader}>
               <View style={styles.bottomSheetTitleRow}>
                 <Text style={styles.bottomSheetIcon}>👋</Text>
@@ -683,10 +898,7 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
               </TouchableOpacity>
             </View>
             
-            {/* Modal Body */}
             <ScrollView style={styles.bottomSheetBody} showsVerticalScrollIndicator={false}>
-              
-              {/* Profile Update Info */}
               <View style={styles.infoSection}>
                 <View style={styles.infoSectionHeader}>
                   <View style={[styles.infoSectionIconBox, styles.blueBg]}>
@@ -701,7 +913,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 </View>
               </View>
 
-              {/* Email Confirmation Info */}
               <View style={styles.infoSection}>
                 <View style={styles.infoSectionHeader}>
                   <View style={[styles.infoSectionIconBox, styles.greenBg]}>
@@ -716,7 +927,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 </View>
               </View>
 
-              {/* Account Access Info */}
               <View style={styles.infoSection}>
                 <View style={styles.infoSectionHeader}>
                   <View style={[styles.infoSectionIconBox, styles.yellowBg]}>
@@ -731,7 +941,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 </View>
               </View>
 
-              {/* Account Expiry Info */}
               <View style={styles.infoSection}>
                 <View style={styles.infoSectionHeader}>
                   <View style={[styles.infoSectionIconBox, styles.redBg]}>
@@ -741,17 +950,15 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
                 </View>
                 <View style={[styles.infoSectionContent, styles.redBorder]}>
                   <Text style={styles.infoSectionText}>
-                    Account Package Expires: Not Set
+                    Account Package Expires: {profileData.account_expiry}
                   </Text>
                   <Text style={[styles.infoSectionText, {marginTop: 8}]}>
                     Contact support to set up or renew your account package.
                   </Text>
                 </View>
               </View>
-
             </ScrollView>
 
-            {/* Modal Footer */}
             <View style={styles.bottomSheetFooter}>
               <TouchableOpacity
                 style={styles.closeSheetButton}
@@ -782,6 +989,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
     paddingBottom: 30,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748b',
   },
   // Header Card
   headerCard: {
@@ -822,11 +1042,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
-  expiryIcon: {
+  expiryIconSmall: {
     fontSize: 12,
     marginRight: 4,
   },
-  expiryText: {
+  expiryTextSmall: {
     fontSize: 12,
     color: '#dc2626',
     fontWeight: '600',
@@ -843,53 +1063,6 @@ const styles = StyleSheet.create({
   },
   infoButtonIcon: {
     fontSize: 18,
-  },
-  // Welcome Card
-  welcomeCard: {
-    backgroundColor: '#fff7ed',
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#ea6118',
-  },
-  welcomeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  welcomeIcon: {
-    fontSize: 24,
-    marginRight: 10,
-  },
-  welcomeTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#293B50',
-  },
-  welcomeText: {
-    fontSize: 14,
-    color: '#64748b',
-    lineHeight: 22,
-  },
-  expiryInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fef2f2',
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: '#dc2626',
-  },
-  expiryIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  expiryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#dc2626',
   },
   // Profile Card
   profileCard: {
@@ -1064,6 +1237,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#293B50',
   },
+  changePasswordBtn: {
+    backgroundColor: '#ea6118',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 8,
+  },
+  changePasswordIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  changePasswordText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  disabledBtn: {
+    backgroundColor: '#94a3b8',
+  },
   // IP Section
   ipSection: {
     backgroundColor: '#f8fafc',
@@ -1172,6 +1366,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
+  statusBadgeActive: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#16a34a',
+  },
   statusIcon: {
     fontSize: 14,
     marginRight: 6,
@@ -1180,6 +1378,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#64748b',
+  },
+  statusTextActive: {
+    color: '#16a34a',
   },
   pushText: {
     fontSize: 14,
