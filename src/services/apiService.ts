@@ -200,6 +200,162 @@ export const patch = <T = any>(
   return apiRequest<T>(endpoint, {method: 'PATCH', body, requiresAuth, showErrorToast});
 };
 
+/**
+ * Upload file with FormData (multipart/form-data)
+ */
+export const uploadFile = async <T = any>(
+  endpoint: string,
+  formData: FormData,
+  requiresAuth = true,
+  showErrorToast = true,
+  onProgress?: (progress: number) => void
+): Promise<ApiResponse<T>> => {
+  try {
+    const url = `${API_CONFIG.BASE_URL}${endpoint}`;
+
+    // Build headers - don't set Content-Type, let fetch set it for FormData
+    const requestHeaders: Record<string, string> = {
+      'Accept': 'application/json',
+    };
+
+    // Add auth token if required
+    if (requiresAuth) {
+      const token = await getToken();
+      if (token) {
+        requestHeaders['Authorization'] = `Bearer ${token}`;
+      }
+    }
+
+    console.log(`API Upload Request: POST ${url}`);
+
+    // Use XMLHttpRequest for progress tracking if needed
+    if (onProgress) {
+      return new Promise((resolve) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            onProgress(progress);
+          }
+        });
+
+        xhr.addEventListener('load', () => {
+          try {
+            const responseData = JSON.parse(xhr.responseText);
+            console.log('API Upload Response:', responseData);
+
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(responseData);
+            } else {
+              const errorMessage = responseData.message || `HTTP Error: ${xhr.status}`;
+              if (showErrorToast) {
+                toast.error(errorMessage);
+              }
+              resolve({
+                status: false,
+                message: errorMessage,
+                errors: responseData.errors,
+              });
+            }
+          } catch (e) {
+            const errorMessage = 'Failed to parse server response';
+            if (showErrorToast) {
+              toast.error(errorMessage);
+            }
+            resolve({
+              status: false,
+              message: errorMessage,
+            });
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          const errorMessage = 'Network error during upload';
+          if (showErrorToast) {
+            toast.error(errorMessage);
+          }
+          resolve({
+            status: false,
+            message: errorMessage,
+          });
+        });
+
+        xhr.addEventListener('timeout', () => {
+          const errorMessage = 'Upload timeout';
+          if (showErrorToast) {
+            toast.error(errorMessage);
+          }
+          resolve({
+            status: false,
+            message: errorMessage,
+          });
+        });
+
+        xhr.open('POST', url);
+        xhr.timeout = API_CONFIG.TIMEOUT * 3; // Triple timeout for uploads
+        
+        // Set headers
+        Object.keys(requestHeaders).forEach((key) => {
+          xhr.setRequestHeader(key, requestHeaders[key]);
+        });
+
+        xhr.send(formData);
+      });
+    }
+
+    // Use fetch for simple uploads without progress
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: formData,
+    });
+
+    const responseData = await response.json();
+    console.log('API Upload Response:', responseData);
+
+    if (!response.ok) {
+      const errorMessage = responseData.message || `HTTP Error: ${response.status}`;
+      if (showErrorToast) {
+        toast.error(errorMessage);
+      }
+      return {
+        status: false,
+        message: errorMessage,
+        errors: responseData.errors,
+      };
+    }
+
+    if (responseData.status === false) {
+      const errorMessage = responseData.message || 'Upload failed';
+      if (showErrorToast) {
+        toast.error(errorMessage);
+      }
+      return responseData;
+    }
+
+    return responseData;
+  } catch (error: any) {
+    console.error('API Upload Error:', error);
+
+    let errorMessage = 'Upload failed';
+    if (error.message === 'Network request failed') {
+      errorMessage = 'Network error during upload. Please check your connection.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    if (showErrorToast) {
+      toast.error(errorMessage);
+    }
+
+    return {
+      status: false,
+      message: errorMessage,
+    };
+  }
+};
+
 export default {
   apiRequest,
   get,
@@ -207,4 +363,5 @@ export default {
   put,
   del,
   patch,
+  uploadFile,
 };

@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -8,15 +8,28 @@ import {
   StatusBar,
   Alert,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
+import {
+  getSenderIds,
+  submitQuickCampaign,
+  formatSenderIdsForDropdown,
+  SenderId,
+} from '../services/campaignService';
 
 interface QuickCampaignScreenProps {
   navigation: any;
 }
 
 const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) => {
+  // Loading states
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   // Form states
   const [campaignName, setCampaignName] = useState('');
   const [routeLetter, setRouteLetter] = useState('');
@@ -24,15 +37,39 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
   const [otherSenderId, setOtherSenderId] = useState('');
   const [recipients, setRecipients] = useState('');
   const [message, setMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSenderIdPicker, setShowSenderIdPicker] = useState(false);
 
-  // Available sender IDs
-  const senderIds = [
+  // Sender IDs from API
+  const [senderIds, setSenderIds] = useState<SenderId[]>([
     {label: 'Choose...', value: 'choose'},
     {label: "Use 'other sender id'", value: 'useotherbelow'},
-    {label: '447418318903', value: '447418318903'},
-  ];
+  ]);
+  const [senderIdCount, setSenderIdCount] = useState(0);
+
+  const fetchSenderIds = useCallback(async () => {
+    try {
+      const response = await getSenderIds();
+      if (response.success && response.data) {
+        const formattedIds = formatSenderIdsForDropdown(response.data.sender_ids || []);
+        setSenderIds(formattedIds);
+        setSenderIdCount(response.data.count || 0);
+      }
+    } catch (error: any) {
+      console.error('Error fetching sender IDs:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSenderIds();
+  }, [fetchSenderIds]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchSenderIds();
+  };
 
   // Calculate recipient count
   const getRecipientCount = () => {
@@ -60,7 +97,16 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
     }
   };
 
-  const handleSubmit = () => {
+  const resetForm = () => {
+    setCampaignName('');
+    setRouteLetter('');
+    setSelectedSenderId('choose');
+    setOtherSenderId('');
+    setRecipients('');
+    setMessage('');
+  };
+
+  const handleSubmit = async () => {
     // Validation
     const errors: string[] = [];
 
@@ -86,21 +132,45 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      const response = await submitQuickCampaign({
+        campaign_name: campaignName.trim(),
+        sender_id: selectedSenderId,
+        other_sender_id: selectedSenderId === 'useotherbelow' ? otherSenderId.trim() : undefined,
+        recipients: recipients.trim(),
+        message: message.trim(),
+        route_letter: routeLetter.trim() || undefined,
+      });
+
+      if (response.success) {
+        Alert.alert(
+          'Campaign Submitted',
+          response.message || 'Your SMS campaign has been submitted successfully.',
+          [
+            {
+              text: 'View History',
+              onPress: () => {
+                resetForm();
+                navigation.navigate('CampaignHistory');
+              },
+            },
+            {
+              text: 'New Campaign',
+              onPress: () => resetForm(),
+            },
+          ]
+        );
+      } else {
+        const errorMessage = response.errors 
+          ? response.errors.join('\n') 
+          : response.message || 'Failed to submit campaign';
+        Alert.alert('Error', errorMessage);
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to submit campaign');
+    } finally {
       setIsSubmitting(false);
-      Alert.alert(
-        'Campaign Submitted',
-        'Your SMS campaign has been submitted successfully. Check the Campaigns History for status.',
-        [
-          {
-            text: 'View History',
-            onPress: () => navigation.navigate('CampaignHistory'),
-          },
-          {text: 'OK'},
-        ]
-      );
-    }, 2000);
+    }
   };
 
   const getSenderIdLabel = () => {
@@ -108,9 +178,26 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
     return sender ? sender.label : 'Choose...';
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
+        <Header 
+          title="Quick Campaign" 
+          onMenuPress={() => navigation.openDrawer()}
+          walletBalance="£6,859.83"
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ea6118" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
       <Header 
         title="Quick Campaign" 
         onMenuPress={() => navigation.openDrawer()}
@@ -120,8 +207,32 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#ea6118']}
+            tintColor="#ea6118"
+          />
+        }>
         
+        {/* Page Header */}
+        <View style={styles.pageHeader}>
+          <View style={styles.pageHeaderContent}>
+            <View style={styles.pageHeaderText}>
+              <Text style={styles.pageHeaderTitle}>📤 Submit New SMS Campaign</Text>
+              <Text style={styles.pageHeaderSubtitle}>Quickly send SMS to a list of mobile numbers</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.historyButton}
+              onPress={() => navigation.navigate('CampaignHistory')}>
+              <Text style={styles.historyButtonIcon}>📋</Text>
+              <Text style={styles.historyButtonText}>History</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Form Card */}
         <View style={styles.formCard}>
           <View style={styles.formCardHeader}>
@@ -130,62 +241,59 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
           </View>
 
           <View style={styles.formCardBody}>
-            {/* Campaign Name & Route Letter Row */}
-            <View style={styles.formRow}>
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>
-                  Campaign Name <Text style={styles.required}>*</Text>
-                </Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="Enter a name to identify this campaign"
-                  placeholderTextColor="#94a3b8"
-                  value={campaignName}
-                  onChangeText={setCampaignName}
-                />
-                <Text style={styles.formHint}>A simple description to help you identify the campaign in future.</Text>
-              </View>
+            {/* Campaign Name */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>
+                Campaign Name <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Enter a name to identify this campaign"
+                placeholderTextColor="#94a3b8"
+                value={campaignName}
+                onChangeText={setCampaignName}
+              />
+              <Text style={styles.formHint}>A simple description to help you identify the campaign in future.</Text>
             </View>
 
-            <View style={styles.formRow}>
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Route Letter</Text>
-                <TextInput
-                  style={[styles.formInput, styles.routeInput]}
-                  placeholder="e.g., d, p, e"
-                  placeholderTextColor="#94a3b8"
-                  value={routeLetter}
-                  onChangeText={(text) => setRouteLetter(text.toLowerCase().slice(0, 1))}
-                  maxLength={1}
-                  autoCapitalize="none"
-                />
-                <Text style={styles.formHint}>Single letter (d, p, e) for SMS delivery route. Leave blank for default.</Text>
-              </View>
+            {/* Route Letter */}
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Route Letter</Text>
+              <TextInput
+                style={[styles.formInput, styles.routeInput]}
+                placeholder="e.g., d, p, e"
+                placeholderTextColor="#94a3b8"
+                value={routeLetter}
+                onChangeText={(text) => setRouteLetter(text.toLowerCase().slice(0, 1))}
+                maxLength={1}
+                autoCapitalize="none"
+              />
+              <Text style={styles.formHint}>Single letter (d, p, e) for SMS delivery route. Leave blank for default.</Text>
             </View>
 
             <View style={styles.divider} />
 
             {/* Sender ID Section */}
-            <View style={styles.formRow}>
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>
-                  Sender ID (Originator) <Text style={styles.required}>*</Text>
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>
+                Sender ID (Originator) <Text style={styles.required}>*</Text>
+              </Text>
+              <TouchableOpacity 
+                style={styles.selectInput}
+                onPress={() => setShowSenderIdPicker(!showSenderIdPicker)}>
+                <Text style={[
+                  styles.selectInputText,
+                  selectedSenderId === 'choose' && styles.selectPlaceholder
+                ]}>
+                  {getSenderIdLabel()}
                 </Text>
-                <TouchableOpacity 
-                  style={styles.selectInput}
-                  onPress={() => setShowSenderIdPicker(!showSenderIdPicker)}>
-                  <Text style={[
-                    styles.selectInputText,
-                    selectedSenderId === 'choose' && styles.selectPlaceholder
-                  ]}>
-                    {getSenderIdLabel()}
-                  </Text>
-                  <Text style={styles.selectArrow}>▼</Text>
-                </TouchableOpacity>
-                
-                {/* Dropdown Options */}
-                {showSenderIdPicker && (
-                  <View style={styles.dropdownContainer}>
+                <Text style={styles.selectArrow}>{showSenderIdPicker ? '▲' : '▼'}</Text>
+              </TouchableOpacity>
+              
+              {/* Dropdown Options */}
+              {showSenderIdPicker && (
+                <View style={styles.dropdownContainer}>
+                  <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
                     {senderIds.map((sender) => (
                       <TouchableOpacity
                         key={sender.value}
@@ -202,38 +310,38 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
                         </Text>
                       </TouchableOpacity>
                     ))}
-                  </View>
-                )}
-                
-                <Text style={styles.formHint}>This is who the SMS comes "from".</Text>
-                
+                  </ScrollView>
+                </View>
+              )}
+              
+              <Text style={styles.formHint}>This is who the SMS comes "from".</Text>
+              
+              {senderIdCount > 0 && (
                 <View style={styles.senderIdCount}>
                   <Text style={styles.senderIdCountIcon}>✓</Text>
                   <Text style={styles.senderIdCountText}>
-                    You have <Text style={styles.bold}>1</Text> registered sender ID(s) available
+                    You have <Text style={styles.bold}>{senderIdCount}</Text> registered sender ID(s) available
                   </Text>
                 </View>
-              </View>
+              )}
             </View>
 
             {/* Other Sender ID */}
-            <View style={styles.formRow}>
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Other Sender ID</Text>
-                <TextInput
-                  style={[
-                    styles.formInput,
-                    selectedSenderId !== 'useotherbelow' && styles.inputDisabled
-                  ]}
-                  placeholder="Enter custom sender ID (max 11 chars)"
-                  placeholderTextColor="#94a3b8"
-                  value={otherSenderId}
-                  onChangeText={setOtherSenderId}
-                  maxLength={11}
-                  editable={selectedSenderId === 'useotherbelow'}
-                />
-                <Text style={styles.formHint}>If using custom sender ID, words must be 11 characters or less.</Text>
-              </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.formLabel}>Other Sender ID</Text>
+              <TextInput
+                style={[
+                  styles.formInput,
+                  selectedSenderId !== 'useotherbelow' && styles.inputDisabled
+                ]}
+                placeholder="Enter custom sender ID (max 11 chars)"
+                placeholderTextColor="#94a3b8"
+                value={otherSenderId}
+                onChangeText={setOtherSenderId}
+                maxLength={11}
+                editable={selectedSenderId === 'useotherbelow'}
+              />
+              <Text style={styles.formHint}>If using custom sender ID, words must be 11 characters or less.</Text>
             </View>
 
             <View style={styles.divider} />
@@ -303,10 +411,10 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
                 <Text style={styles.warningTitle}>Important Notes:</Text>
               </View>
               <View style={styles.warningContent}>
-                <Text style={styles.warningItem}>• SMS will be submitted for sending <Text style={styles.bold}>immediately</Text>. Large campaigns may take a few minutes to upload.</Text>
-                <Text style={styles.warningItem}>• <Text style={styles.bold}>Do not refresh the page</Text> after clicking submit.</Text>
-                <Text style={styles.warningItem}>• Leave Route letter blank to use your account's default route.</Text>
-                <Text style={styles.warningItem}>• Some validation occurs after submission - check the previous campaigns page for status.</Text>
+                <Text style={styles.warningItem}>• SMS will be submitted for sending <Text style={styles.bold}>immediately</Text>.</Text>
+                <Text style={styles.warningItem}>• Large campaigns may take a few minutes to process.</Text>
+                <Text style={styles.warningItem}>• Leave Route letter blank for your account's default route.</Text>
+                <Text style={styles.warningItem}>• Check campaign history for status updates.</Text>
               </View>
             </View>
 
@@ -316,15 +424,20 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
                 style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
                 onPress={handleSubmit}
                 disabled={isSubmitting}>
-                <Text style={styles.submitButtonIcon}>{isSubmitting ? '⏳' : '📤'}</Text>
-                <Text style={styles.submitButtonText}>
-                  {isSubmitting ? 'Submitting Campaign...' : 'Submit Campaign'}
-                </Text>
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <>
+                    <Text style={styles.submitButtonIcon}>📤</Text>
+                    <Text style={styles.submitButtonText}>Submit Campaign</Text>
+                  </>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity 
                 style={styles.cancelButton}
-                onPress={() => navigation.navigate('CampaignHome')}>
+                onPress={() => navigation.goBack()}
+                disabled={isSubmitting}>
                 <Text style={styles.cancelButtonIcon}>✕</Text>
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
@@ -345,10 +458,25 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   scrollContent: {
     padding: 16,
     paddingBottom: 30,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748b',
   },
   // Page Header
   pageHeader: {
@@ -356,6 +484,11 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     padding: 16,
     marginBottom: 20,
+    shadowColor: '#ea6118',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   pageHeaderContent: {
     flexDirection: 'row',
@@ -399,6 +532,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   formCardHeader: {
     flexDirection: 'row',
@@ -421,11 +559,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   // Form Elements
-  formRow: {
-    marginBottom: 16,
-  },
   formGroup: {
-    marginBottom: 8,
+    marginBottom: 16,
   },
   formLabel: {
     fontSize: 14,
@@ -500,6 +635,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 4,
     overflow: 'hidden',
+    maxHeight: 200,
+  },
+  dropdownScroll: {
+    maxHeight: 200,
   },
   dropdownItem: {
     padding: 12,
@@ -623,6 +762,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 10,
+    minHeight: 50,
+    shadowColor: '#ea6118',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   submitButtonDisabled: {
     opacity: 0.7,

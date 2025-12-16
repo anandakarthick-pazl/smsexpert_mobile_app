@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useCallback, useEffect} from 'react';
 import {
   View,
   Text,
@@ -10,75 +10,33 @@ import {
   TextInput,
   Modal,
   Pressable,
+  ActivityIndicator,
+  RefreshControl,
+  Clipboard,
+  ToastAndroid,
+  Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
+import {
+  getAccounts,
+  transferFunds,
+  canAddSubAccount,
+  Account,
+  AccountStatistics,
+} from '../services/accountsService';
 
 interface CampaignAccountsScreenProps {
   navigation: any;
 }
 
-interface Account {
-  id: number;
-  contactName: string;
-  email: string;
-  businessName: string;
-  dailyLimit: number;
-  walletBalance: number;
-  keywords: number;
-  username: string;
-  isMaster: boolean;
-}
-
-const sampleAccounts: Account[] = [
-  {
-    id: 1,
-    contactName: 'Customer',
-    email: 'sabariraja@nedholdings.com',
-    businessName: 'Customer',
-    dailyLimit: 100,
-    walletBalance: 6859.826,
-    keywords: 1,
-    username: 'master',
-    isMaster: true,
-  },
-  {
-    id: 2,
-    contactName: 'sub1',
-    email: '',
-    businessName: 'sub1',
-    dailyLimit: 1000,
-    walletBalance: 0,
-    keywords: 0,
-    username: '401298b4',
-    isMaster: false,
-  },
-  {
-    id: 3,
-    contactName: 'sub2',
-    email: '',
-    businessName: 'sub2',
-    dailyLimit: 1000,
-    walletBalance: 0,
-    keywords: 0,
-    username: '29853e13',
-    isMaster: false,
-  },
-  {
-    id: 4,
-    contactName: 'sub3',
-    email: '',
-    businessName: 'sub3',
-    dailyLimit: 1000,
-    walletBalance: 0,
-    keywords: 0,
-    username: 'a97648a4',
-    isMaster: false,
-  },
-];
-
 const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigation}) => {
-  const [accounts] = useState<Account[]>(sampleAccounts);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [statistics, setStatistics] = useState<AccountStatistics | null>(null);
+  const [canAddAccount, setCanAddAccount] = useState(false);
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'master' | 'sub'>('all');
   
@@ -89,27 +47,68 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
   const [transferAmount, setTransferAmount] = useState('');
   const [showFromDropdown, setShowFromDropdown] = useState(false);
   const [showToDropdown, setShowToDropdown] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  const fetchAccounts = useCallback(async () => {
+    try {
+      const [accountsResponse, canAddResponse] = await Promise.all([
+        getAccounts(),
+        canAddSubAccount(),
+      ]);
+      
+      if (accountsResponse.success && accountsResponse.data) {
+        setAccounts(accountsResponse.data.accounts);
+        setStatistics(accountsResponse.data.statistics);
+      } else {
+        console.error('Failed to fetch accounts:', accountsResponse.message);
+      }
+      
+      if (canAddResponse.success && canAddResponse.data) {
+        setCanAddAccount(canAddResponse.data.can_add);
+      }
+    } catch (error: any) {
+      console.error('Error fetching accounts:', error);
+      Alert.alert('Error', 'Failed to load accounts');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, [fetchAccounts]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchAccounts();
+  };
 
   // Filter accounts based on search and filter type
   const filteredAccounts = accounts.filter(account => {
     const matchesSearch = 
-      account.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      account.contact_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       account.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      account.businessName.toLowerCase().includes(searchQuery.toLowerCase());
+      account.business_name.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesFilter = 
       filterType === 'all' ||
-      (filterType === 'master' && account.isMaster) ||
-      (filterType === 'sub' && !account.isMaster);
+      (filterType === 'master' && account.is_master) ||
+      (filterType === 'sub' && !account.is_master);
     
     return matchesSearch && matchesFilter;
   });
 
   const copyToClipboard = (text: string) => {
-    Alert.alert('Username', `Username: ${text}\n\n(Copy functionality available in production)`);
+    Clipboard.setString(text);
+    if (Platform.OS === 'android') {
+      ToastAndroid.show(`Username copied: ${text}`, ToastAndroid.SHORT);
+    } else {
+      Alert.alert('Copied', `Username "${text}" copied to clipboard`);
+    }
   };
 
-  const handleTransfer = () => {
+  const handleTransfer = async () => {
     if (!fromAccount) {
       Alert.alert('Error', 'Please select source account');
       return;
@@ -127,33 +126,56 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
       return;
     }
 
+    const amount = parseFloat(transferAmount);
+
     Alert.alert(
       'Confirm Transfer',
-      `Are you sure you want to transfer £${transferAmount} from ${fromAccount} to ${toAccount}?`,
+      `Are you sure you want to transfer £${amount.toFixed(2)} from ${fromAccount} to ${toAccount}?`,
       [
         {text: 'Cancel', style: 'cancel'},
         {
           text: 'Transfer',
-          onPress: () => {
-            Alert.alert('Success', 'Funds transferred successfully');
-            setFromAccount('');
-            setToAccount('');
-            setTransferAmount('');
-            setShowTransferSheet(false);
+          onPress: async () => {
+            setIsTransferring(true);
+            try {
+              const response = await transferFunds(fromAccount, toAccount, amount);
+              
+              if (response.success) {
+                Alert.alert('Success', response.message || 'Funds transferred successfully');
+                setFromAccount('');
+                setToAccount('');
+                setTransferAmount('');
+                setShowTransferSheet(false);
+                fetchAccounts(); // Refresh accounts
+              } else {
+                Alert.alert('Error', response.message || 'Failed to transfer funds');
+              }
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to transfer funds');
+            } finally {
+              setIsTransferring(false);
+            }
           },
         },
       ]
     );
   };
 
-  const formatBalance = (balance: number) => {
-    return `£${balance.toFixed(3)}`;
+  const handleAddAccount = () => {
+    if (canAddAccount) {
+      navigation.navigate('CampaignAddAccount');
+    } else {
+      Alert.alert(
+        'Permission Denied',
+        'You do not have permission to add sub-accounts. Only master accounts can create sub-accounts.'
+      );
+    }
   };
 
   const getAccountLabel = (username: string) => {
     const account = accounts.find(a => a.username === username);
     if (account) {
-      return `${account.username} - ${account.contactName} (£${account.walletBalance.toFixed(2)})`;
+      return `${account.username} - ${account.contact_name} (${account.wallet_balance_formatted})`;
     }
     return username;
   };
@@ -161,7 +183,7 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
   const getAccountLabelShort = (username: string) => {
     const account = accounts.find(a => a.username === username);
     if (account) {
-      return `${account.username} - ${account.contactName}`;
+      return `${account.username} - ${account.contact_name}`;
     }
     return username;
   };
@@ -171,185 +193,257 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
     setFilterType('all');
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
+        <Header 
+          title="View Accounts" 
+          onMenuPress={() => navigation.openDrawer()}
+          walletBalance="£0.00"
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#7c3aed" />
+          <Text style={styles.loadingText}>Loading accounts...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
       <Header 
         title="View Accounts" 
         onMenuPress={() => navigation.openDrawer()}
-        walletBalance="£6,859.83"
+        walletBalance={statistics?.total_wallet_formatted || '£0.00'}
       />
       
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+      <View style={styles.contentWrapper}>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#7c3aed']}
+              tintColor="#7c3aed"
+            />
+          }>
 
-        {/* Filter Card */}
-        <View style={styles.filterCard}>
-          <View style={styles.filterHeader}>
-            <Text style={styles.filterHeaderIcon}>🔍</Text>
-            <Text style={styles.filterHeaderTitle}>Filter Accounts</Text>
-            <TouchableOpacity 
-              style={styles.transferIconButton}
-              onPress={() => setShowTransferSheet(true)}>
-              <Text style={styles.transferIconText}>💸</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.filterBody}>
-            {/* Search Input */}
-            <View style={styles.searchContainer}>
-              <Text style={styles.searchIcon}>🔍</Text>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search by name, username..."
-                placeholderTextColor="#94a3b8"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Text style={styles.clearIcon}>✕</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Filter Type Buttons */}
-            <View style={styles.filterTypeRow}>
-              <TouchableOpacity
-                style={[
-                  styles.filterTypeButton,
-                  filterType === 'all' && styles.filterTypeButtonActive
-                ]}
-                onPress={() => setFilterType('all')}>
-                <Text style={[
-                  styles.filterTypeText,
-                  filterType === 'all' && styles.filterTypeTextActive
-                ]}>All</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.filterTypeButton,
-                  filterType === 'master' && styles.filterTypeButtonActiveMaster
-                ]}
-                onPress={() => setFilterType('master')}>
-                <Text style={[
-                  styles.filterTypeText,
-                  filterType === 'master' && styles.filterTypeTextActive
-                ]}>Master</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.filterTypeButton,
-                  filterType === 'sub' && styles.filterTypeButtonActiveSub
-                ]}
-                onPress={() => setFilterType('sub')}>
-                <Text style={[
-                  styles.filterTypeText,
-                  filterType === 'sub' && styles.filterTypeTextActive
-                ]}>Sub-Accounts</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Results Count & Reset */}
-            <View style={styles.filterFooter}>
-              <Text style={styles.resultsCount}>
-                {filteredAccounts.length} account{filteredAccounts.length !== 1 ? 's' : ''} found
-              </Text>
-              {(searchQuery || filterType !== 'all') && (
-                <TouchableOpacity onPress={resetFilters}>
-                  <Text style={styles.resetText}>🔄 Reset</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* Accounts List Card */}
-        <View style={styles.dataCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardHeaderIcon}>👥</Text>
-            <Text style={styles.cardHeaderTitle}>Account List</Text>
-          </View>
-
-          {/* Account Items */}
-          {filteredAccounts.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>📭</Text>
-              <Text style={styles.emptyText}>No accounts found</Text>
-              <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
-            </View>
-          ) : (
-            filteredAccounts.map((account) => (
-              <View 
-                key={account.id} 
-                style={[styles.accountRow, account.isMaster && styles.masterRow]}>
-                
-                {/* Row Number & Name */}
-                <View style={styles.accountMain}>
-                  <View style={styles.accountNumber}>
-                    <Text style={styles.accountNumberText}>{account.id}</Text>
-                  </View>
-                  <View style={styles.accountNameSection}>
-                    <View style={styles.accountNameRow}>
-                      <Text style={styles.accountName}>{account.contactName}</Text>
-                      {account.isMaster && (
-                        <View style={styles.masterBadge}>
-                          <Text style={styles.masterBadgeText}>Master</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.businessName}>{account.businessName}</Text>
-                    {account.email ? (
-                      <Text style={styles.email}>{account.email}</Text>
-                    ) : null}
-                  </View>
-                </View>
-
-                {/* Account Details */}
-                <View style={styles.accountDetails}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Daily Limit:</Text>
-                    <Text style={styles.detailValue}>{account.dailyLimit.toLocaleString()}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Keywords:</Text>
-                    <Text style={styles.detailValue}>{account.keywords}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Balance:</Text>
-                    <View style={[
-                      styles.walletBadge,
-                      account.walletBalance > 0 ? styles.walletPositive : styles.walletNegative
-                    ]}>
-                      <Text style={[
-                        styles.walletBadgeText,
-                        account.walletBalance > 0 ? styles.walletPositiveText : styles.walletNegativeText
-                      ]}>
-                        {formatBalance(account.walletBalance)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Username Row */}
-                <View style={styles.usernameRow}>
-                  <View style={styles.usernameBadge}>
-                    <Text style={styles.usernameText}>{account.username}</Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={styles.copyButton}
-                    onPress={() => copyToClipboard(account.username)}>
-                    <Text style={styles.copyButtonText}>📋</Text>
-                  </TouchableOpacity>
-                </View>
+          {/* Statistics Cards */}
+          {statistics && (
+            <View style={styles.statsRow}>
+              <View style={[styles.statCard, styles.statCardPurple]}>
+                <Text style={styles.statValue}>{statistics.total_accounts}</Text>
+                <Text style={styles.statLabel}>Total Accounts</Text>
               </View>
-            ))
+              <View style={[styles.statCard, styles.statCardBlue]}>
+                <Text style={styles.statValue}>{statistics.sub_accounts}</Text>
+                <Text style={styles.statLabel}>Sub Accounts</Text>
+              </View>
+              <View style={[styles.statCard, styles.statCardGreen]}>
+                <Text style={styles.statValueSmall}>{statistics.total_wallet_formatted}</Text>
+                <Text style={styles.statLabel}>Total Balance</Text>
+              </View>
+            </View>
           )}
-        </View>
 
-      </ScrollView>
+          {/* Filter Card */}
+          <View style={styles.filterCard}>
+            <View style={styles.filterHeader}>
+              <Text style={styles.filterHeaderIcon}>🔍</Text>
+              <Text style={styles.filterHeaderTitle}>Filter Accounts</Text>
+              <TouchableOpacity 
+                style={styles.transferIconButton}
+                onPress={() => setShowTransferSheet(true)}>
+                <Text style={styles.transferIconText}>💸</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.filterBody}>
+              {/* Search Input */}
+              <View style={styles.searchContainer}>
+                <Text style={styles.searchIcon}>🔍</Text>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search by name, username..."
+                  placeholderTextColor="#94a3b8"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => setSearchQuery('')}>
+                    <Text style={styles.clearIcon}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Filter Type Buttons */}
+              <View style={styles.filterTypeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterTypeButton,
+                    filterType === 'all' && styles.filterTypeButtonActive
+                  ]}
+                  onPress={() => setFilterType('all')}>
+                  <Text style={[
+                    styles.filterTypeText,
+                    filterType === 'all' && styles.filterTypeTextActive
+                  ]}>All</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterTypeButton,
+                    filterType === 'master' && styles.filterTypeButtonActiveMaster
+                  ]}
+                  onPress={() => setFilterType('master')}>
+                  <Text style={[
+                    styles.filterTypeText,
+                    filterType === 'master' && styles.filterTypeTextActive
+                  ]}>Master</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterTypeButton,
+                    filterType === 'sub' && styles.filterTypeButtonActiveSub
+                  ]}
+                  onPress={() => setFilterType('sub')}>
+                  <Text style={[
+                    styles.filterTypeText,
+                    filterType === 'sub' && styles.filterTypeTextActive
+                  ]}>Sub-Accounts</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Results Count & Reset */}
+              <View style={styles.filterFooter}>
+                <Text style={styles.resultsCount}>
+                  {filteredAccounts.length} account{filteredAccounts.length !== 1 ? 's' : ''} found
+                </Text>
+                {(searchQuery || filterType !== 'all') && (
+                  <TouchableOpacity onPress={resetFilters}>
+                    <Text style={styles.resetText}>🔄 Reset</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+
+          {/* Accounts List Card */}
+          <View style={styles.dataCard}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardHeaderIcon}>👤</Text>
+              <Text style={styles.cardHeaderTitle}>Account List</Text>
+            </View>
+
+            {/* Account Items */}
+            {filteredAccounts.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>📭</Text>
+                <Text style={styles.emptyText}>No accounts found</Text>
+                <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
+              </View>
+            ) : (
+              filteredAccounts.map((account, index) => (
+                <View 
+                  key={account.id} 
+                  style={[styles.accountRow, account.is_master && styles.masterRow]}>
+                  
+                  {/* Row Number & Name */}
+                  <View style={styles.accountMain}>
+                    <View style={styles.accountNumber}>
+                      <Text style={styles.accountNumberText}>{index + 1}</Text>
+                    </View>
+                    <View style={styles.accountNameSection}>
+                      <View style={styles.accountNameRow}>
+                        <Text style={styles.accountName}>{account.contact_name}</Text>
+                        {account.is_master && (
+                          <View style={styles.masterBadge}>
+                            <Text style={styles.masterBadgeText}>Master</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.businessName}>{account.business_name}</Text>
+                      {account.email ? (
+                        <Text style={styles.email}>{account.email}</Text>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  {/* Account Details */}
+                  <View style={styles.accountDetails}>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Daily Limit:</Text>
+                      <Text style={styles.detailValue}>{account.daily_limit_formatted}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Keywords:</Text>
+                      <Text style={styles.detailValue}>{account.keywords}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Balance:</Text>
+                      <View style={[
+                        styles.walletBadge,
+                        account.wallet_balance > 0 ? styles.walletPositive : styles.walletNegative
+                      ]}>
+                        <Text style={[
+                          styles.walletBadgeText,
+                          account.wallet_balance > 0 ? styles.walletPositiveText : styles.walletNegativeText
+                        ]}>
+                          {account.wallet_balance_formatted}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Username Row */}
+                  <View style={styles.usernameRow}>
+                    <View style={styles.usernameBadge}>
+                      <Text style={styles.usernameText}>{account.username}</Text>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.copyButton}
+                      onPress={() => copyToClipboard(account.username)}>
+                      <Text style={styles.copyButtonText}>📋</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+
+          {/* Transfer Funds Card */}
+          <View style={styles.transferCard}>
+            <View style={styles.transferCardHeader}>
+              <Text style={styles.transferCardIcon}>↔️</Text>
+              <Text style={styles.transferCardTitle}>Transfer Wallet Funds Between Accounts</Text>
+            </View>
+            <View style={styles.transferCardBody}>
+              <Text style={styles.transferDescription}>
+                Transfer funds between your master and sub-accounts instantly.
+              </Text>
+              <TouchableOpacity 
+                style={styles.transferMainButton}
+                onPress={() => setShowTransferSheet(true)}>
+                <Text style={styles.transferMainButtonIcon}>💸</Text>
+                <Text style={styles.transferMainButtonText}>Transfer Funds</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+        </ScrollView>
+
+        {/* Floating Action Button */}
+        <TouchableOpacity 
+          style={styles.fab}
+          onPress={handleAddAccount}
+          activeOpacity={0.8}>
+          <Text style={styles.fabIcon}>+</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Transfer Funds Bottom Sheet */}
       <Modal
@@ -382,7 +476,7 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
               keyboardShouldPersistTaps="handled">
 
               {/* From Account Dropdown */}
-              <View style={styles.formGroup}>
+              <View style={[styles.formGroup, {zIndex: 3}]}>
                 <Text style={styles.formLabel}>From Account *</Text>
                 <TouchableOpacity
                   style={styles.selectBox}
@@ -403,7 +497,7 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
                   <View style={styles.dropdown}>
                     {accounts.map((acc) => (
                       <TouchableOpacity
-                        key={acc.id}
+                        key={`from-${acc.id}`}
                         style={[
                           styles.dropdownItem,
                           fromAccount === acc.username && styles.dropdownItemSelected
@@ -417,16 +511,16 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
                             styles.dropdownItemText,
                             fromAccount === acc.username && styles.dropdownItemTextSelected
                           ]}>
-                            {acc.username} - {acc.contactName}
+                            {acc.username} - {acc.contact_name}
                           </Text>
                           <Text style={[
                             styles.dropdownItemBalance,
-                            acc.walletBalance > 0 ? styles.balancePositive : styles.balanceNegative
+                            acc.wallet_balance > 0 ? styles.balancePositive : styles.balanceNegative
                           ]}>
-                            £{acc.walletBalance.toFixed(2)}
+                            {acc.wallet_balance_formatted}
                           </Text>
                         </View>
-                        {acc.isMaster && (
+                        {acc.is_master && (
                           <View style={styles.dropdownMasterBadge}>
                             <Text style={styles.dropdownMasterText}>Master</Text>
                           </View>
@@ -438,7 +532,7 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
               </View>
 
               {/* To Account Dropdown */}
-              <View style={styles.formGroup}>
+              <View style={[styles.formGroup, {zIndex: 2}]}>
                 <Text style={styles.formLabel}>To Account *</Text>
                 <TouchableOpacity
                   style={styles.selectBox}
@@ -459,7 +553,7 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
                   <View style={styles.dropdown}>
                     {accounts.map((acc) => (
                       <TouchableOpacity
-                        key={acc.id}
+                        key={`to-${acc.id}`}
                         style={[
                           styles.dropdownItem,
                           toAccount === acc.username && styles.dropdownItemSelected
@@ -473,10 +567,10 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
                             styles.dropdownItemText,
                             toAccount === acc.username && styles.dropdownItemTextSelected
                           ]}>
-                            {acc.username} - {acc.contactName}
+                            {acc.username} - {acc.contact_name}
                           </Text>
                         </View>
-                        {acc.isMaster && (
+                        {acc.is_master && (
                           <View style={styles.dropdownMasterBadge}>
                             <Text style={styles.dropdownMasterText}>Master</Text>
                           </View>
@@ -488,7 +582,7 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
               </View>
 
               {/* Transfer Amount */}
-              <View style={styles.formGroup}>
+              <View style={[styles.formGroup, {zIndex: 1}]}>
                 <Text style={styles.formLabel}>Amount (£) *</Text>
                 <View style={styles.amountInputContainer}>
                   <Text style={styles.amountCurrency}>£</Text>
@@ -512,14 +606,22 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
                     setFromAccount('');
                     setToAccount('');
                     setTransferAmount('');
-                  }}>
+                  }}
+                  disabled={isTransferring}>
                   <Text style={styles.cancelButtonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
-                  style={styles.transferButton}
-                  onPress={handleTransfer}>
-                  <Text style={styles.transferButtonIcon}>💸</Text>
-                  <Text style={styles.transferButtonText}>Transfer Funds</Text>
+                  style={[styles.transferButton, isTransferring && styles.transferButtonDisabled]}
+                  onPress={handleTransfer}
+                  disabled={isTransferring}>
+                  {isTransferring ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <>
+                      <Text style={styles.transferButtonIcon}>💸</Text>
+                      <Text style={styles.transferButtonText}>Transfer</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               </View>
 
@@ -536,13 +638,77 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#293B50',
   },
+  contentWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748b',
+  },
   scrollView: {
     flex: 1,
     backgroundColor: '#f8fafc',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 30,
+    paddingBottom: 100, // Extra padding for FAB
+  },
+  // Statistics Row
+  statsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+    borderLeftWidth: 4,
+  },
+  statCardPurple: {
+    borderLeftColor: '#7c3aed',
+  },
+  statCardBlue: {
+    borderLeftColor: '#3b82f6',
+  },
+  statCardGreen: {
+    borderLeftColor: '#16a34a',
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#293B50',
+    marginBottom: 4,
+  },
+  statValueSmall: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#293B50',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: '#64748b',
+    textAlign: 'center',
   },
   // Filter Card
   filterCard: {
@@ -826,7 +992,7 @@ const styles = StyleSheet.create({
   },
   usernameText: {
     fontSize: 12,
-    fontFamily: 'monospace',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     color: '#64748b',
   },
   copyButton: {
@@ -835,6 +1001,87 @@ const styles = StyleSheet.create({
   },
   copyButtonText: {
     fontSize: 14,
+  },
+  // Transfer Card
+  transferCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  transferCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(245, 158, 11, 0.2)',
+  },
+  transferCardIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  transferCardTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#92400e',
+    flex: 1,
+  },
+  transferCardBody: {
+    padding: 16,
+  },
+  transferDescription: {
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  transferMainButton: {
+    backgroundColor: '#f59e0b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 10,
+    shadowColor: '#f59e0b',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  transferMainButtonIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  transferMainButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  // Floating Action Button
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#7c3aed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#7c3aed',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabIcon: {
+    fontSize: 28,
+    color: '#ffffff',
+    fontWeight: '300',
+    marginTop: -2,
   },
   // Bottom Sheet Modal
   modalOverlay: {
@@ -878,7 +1125,6 @@ const styles = StyleSheet.create({
   // Form Elements
   formGroup: {
     marginBottom: 16,
-    zIndex: 1,
   },
   formLabel: {
     fontSize: 13,
@@ -921,6 +1167,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 4,
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   dropdownItem: {
     flexDirection: 'row',
@@ -1017,6 +1268,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 10,
+  },
+  transferButtonDisabled: {
+    backgroundColor: '#fcd34d',
   },
   transferButtonIcon: {
     fontSize: 16,

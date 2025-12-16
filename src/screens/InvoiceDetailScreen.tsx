@@ -55,8 +55,8 @@ const InvoiceDetailScreen: React.FC<Props> = ({navigation, route}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header
           title="Invoice Details"
           onMenuPress={onMenuPress}
@@ -95,8 +95,8 @@ const InvoiceDetailScreen: React.FC<Props> = ({navigation, route}) => {
   const {invoice, customer, items, company_details, payment_instructions} = data;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
       <Header
         title={`Invoice #${invoice.invoice_ref}`}
         onMenuPress={onMenuPress}

@@ -43,7 +43,8 @@ export interface DownloadResponse {
   message?: string;
   data?: {
     filename: string;
-    csv_data: string[][];
+    content: string; // base64 encoded
+    mime_type: string;
     total_records: number;
   };
 }
@@ -108,6 +109,18 @@ export const downloadBlacklist = async (): Promise<DownloadResponse> => {
       success: false,
       message: error.response?.data?.message || error.message || 'Failed to download blacklist',
     };
+  }
+};
+
+/**
+ * Decode base64 content
+ */
+export const decodeBase64 = (base64: string): string => {
+  try {
+    return atob(base64);
+  } catch (error) {
+    console.error('Base64 decode error:', error);
+    return '';
   }
 };
 

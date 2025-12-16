@@ -280,8 +280,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header
           title="Client Profile"
           onMenuPress={() => navigation.openDrawer()}
@@ -298,8 +298,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
 
       <Header
         title="Client Profile"
@@ -1587,6 +1587,7 @@ const styles = StyleSheet.create({
   bottomSheetFooter: {
     padding: 20,
     paddingTop: 16,
+    paddingBottom: 50,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
   },

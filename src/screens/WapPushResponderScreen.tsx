@@ -10,7 +10,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
+  StatusBar,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {getWapPushResponder, updateWapPushResponder} from '../services/keywordsService';
 
@@ -105,15 +107,19 @@ const WapPushResponderScreen: React.FC<WapPushResponderScreenProps> = ({navigati
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ea6118" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ea6118" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -360,7 +366,7 @@ const WapPushResponderScreen: React.FC<WapPushResponderScreenProps> = ({navigati
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -382,7 +388,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#293b50',
-    paddingTop: 50,
+    paddingTop: 10,
     paddingBottom: 15,
     paddingHorizontal: 15,
     flexDirection: 'row',

@@ -617,8 +617,8 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header
           title="Groups"
           onMenuPress={() => navigation.openDrawer()}
@@ -635,8 +635,8 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
 
       <Header
         title="Groups"
@@ -646,158 +646,156 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({navigation}) => {
         walletBalance="£6859"
       />
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#ea6118']}
-            tintColor="#ea6118"
-          />
-        }>
-        {/* Statistics Summary */}
-        <View style={styles.statsCard}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statsNumber}>{statistics.total_groups}</Text>
-              <Text style={styles.statsLabel}>Total Groups</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statsNumber}>{statistics.total_members}</Text>
-              <Text style={styles.statsLabel}>Total Members</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statsNumber}>{statistics.active_groups}</Text>
-              <Text style={styles.statsLabel}>Active Groups</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Create Group Button */}
-        <TouchableOpacity style={styles.createButton} onPress={openAddModal}>
-          <Text style={styles.createButtonIcon}>➕</Text>
-          <Text style={styles.createButtonText}>Create New Group</Text>
-        </TouchableOpacity>
-
-        {/* Search Bar */}
-        <View style={styles.searchCard}>
-          <View style={styles.searchInputContainer}>
-            <Text style={styles.searchIcon}>🔍</Text>
-            <TextInput
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={handleSearch}
-              placeholder="Search groups..."
-              placeholderTextColor="#94a3b8"
+      <View style={styles.content}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#ea6118']}
+              tintColor="#ea6118"
             />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery('');
-                  fetchGroups();
-                }}>
-                <Text style={styles.clearIcon}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Groups List Card */}
-        <View style={styles.resultsCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardHeaderIcon}>👥</Text>
-            <Text style={styles.cardHeaderTitle}>Your Groups</Text>
-            <TouchableOpacity
-              style={styles.infoButtonSmall}
-              onPress={() => setShowInfoSheet(true)}>
-              <Text style={styles.infoButtonIcon}>ℹ️</Text>
-            </TouchableOpacity>
+          }>
+          {/* Statistics Summary */}
+          <View style={styles.statsCard}>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statsNumber}>{statistics.total_groups}</Text>
+                <Text style={styles.statsLabel}>Total Groups</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statsNumber}>{statistics.total_members}</Text>
+                <Text style={styles.statsLabel}>Total Members</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statsNumber}>{statistics.active_groups}</Text>
+                <Text style={styles.statsLabel}>Active Groups</Text>
+              </View>
+            </View>
           </View>
 
-          {groups.length === 0 ? (
-            <View style={styles.noDataContainer}>
-              <Text style={styles.noDataIcon}>👥</Text>
-              <Text style={styles.noDataTitle}>No Groups Found</Text>
-              <Text style={styles.noDataText}>
-                {searchQuery
-                  ? 'No groups match your search. Try a different keyword.'
-                  : "You haven't created any groups yet. Create one to organize your contacts."}
-              </Text>
-              {!searchQuery && (
+          {/* Search Bar */}
+          <View style={styles.searchCard}>
+            <View style={styles.searchInputContainer}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={handleSearch}
+                placeholder="Search groups..."
+                placeholderTextColor="#94a3b8"
+              />
+              {searchQuery.length > 0 && (
                 <TouchableOpacity
-                  style={styles.addFirstButton}
-                  onPress={openAddModal}>
-                  <Text style={styles.addFirstButtonIcon}>➕</Text>
-                  <Text style={styles.addFirstButtonText}>Create First Group</Text>
+                  onPress={() => {
+                    setSearchQuery('');
+                    fetchGroups();
+                  }}>
+                  <Text style={styles.clearIcon}>✕</Text>
                 </TouchableOpacity>
               )}
             </View>
-          ) : (
-            <>
-              {/* Groups Grid */}
-              <View style={styles.groupsGrid}>
-                {groups.map(group => (
-                  <View key={group.id} style={styles.groupCard}>
-                    <View style={styles.groupCardHeader}>
-                      <Text style={styles.groupIcon}>👥</Text>
-                      <Text style={styles.groupName} numberOfLines={2}>
-                        {group.name}
-                      </Text>
-                    </View>
+          </View>
 
-                    <TouchableOpacity
-                      style={[
-                        styles.memberCountBadge,
-                        group.member_count === 0 && styles.zeroMembers,
-                      ]}
-                      onPress={() => openMembersModal(group)}>
-                      <Text style={styles.memberCountIcon}>👤</Text>
-                      <Text
+          {/* Groups List Card */}
+          <View style={styles.resultsCard}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardHeaderIcon}>👥</Text>
+              <Text style={styles.cardHeaderTitle}>Your Groups</Text>
+              <TouchableOpacity
+                style={styles.infoButtonSmall}
+                onPress={() => setShowInfoSheet(true)}>
+                <Text style={styles.infoButtonIcon}>ℹ️</Text>
+              </TouchableOpacity>
+            </View>
+
+            {groups.length === 0 ? (
+              <View style={styles.noDataContainer}>
+                <Text style={styles.noDataIcon}>👥</Text>
+                <Text style={styles.noDataTitle}>No Groups Found</Text>
+                <Text style={styles.noDataText}>
+                  {searchQuery
+                    ? 'No groups match your search. Try a different keyword.'
+                    : "You haven't created any groups yet. Tap the + button to create one."}
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* Groups Grid */}
+                <View style={styles.groupsGrid}>
+                  {groups.map(group => (
+                    <View key={group.id} style={styles.groupCard}>
+                      <View style={styles.groupCardHeader}>
+                        <Text style={styles.groupIcon}>👥</Text>
+                        <Text style={styles.groupName} numberOfLines={2}>
+                          {group.name}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
                         style={[
-                          styles.memberCountText,
-                          group.member_count === 0 && styles.zeroMembersText,
-                        ]}>
-                        {group.member_count}{' '}
-                        {group.member_count === 1 ? 'member' : 'members'}
-                      </Text>
-                    </TouchableOpacity>
-
-                    <View style={styles.groupActions}>
-                      <TouchableOpacity
-                        style={styles.actionBtnAdd}
+                          styles.memberCountBadge,
+                          group.member_count === 0 && styles.zeroMembers,
+                        ]}
                         onPress={() => openMembersModal(group)}>
-                        <Text style={styles.actionBtnIcon}>👤➕</Text>
-                        <Text style={styles.actionBtnText}>Add</Text>
+                        <Text style={styles.memberCountIcon}>👤</Text>
+                        <Text
+                          style={[
+                            styles.memberCountText,
+                            group.member_count === 0 && styles.zeroMembersText,
+                          ]}>
+                          {group.member_count}{' '}
+                          {group.member_count === 1 ? 'member' : 'members'}
+                        </Text>
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.actionBtnEdit}
-                        onPress={() => openEditModal(group)}>
-                        <Text style={styles.actionBtnIcon}>✏️</Text>
-                        <Text style={styles.actionBtnText}>Edit</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.actionBtnDelete}
-                        onPress={() => handleDeleteGroup(group)}>
-                        <Text style={styles.actionBtnIcon}>🗑️</Text>
-                        <Text style={styles.actionBtnText}>Delete</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ))}
-              </View>
 
-              {/* End of List Indicator */}
-              <View style={styles.endOfListContainer}>
-                <Text style={styles.endOfListText}>— End of groups —</Text>
-              </View>
-            </>
-          )}
-        </View>
-      </ScrollView>
+                      <View style={styles.groupActions}>
+                        <TouchableOpacity
+                          style={styles.actionBtnAdd}
+                          onPress={() => openMembersModal(group)}>
+                          <Text style={styles.actionBtnIcon}>👤➕</Text>
+                          <Text style={styles.actionBtnText}>Add</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.actionBtnEdit}
+                          onPress={() => openEditModal(group)}>
+                          <Text style={styles.actionBtnIcon}>✏️</Text>
+                          <Text style={styles.actionBtnText}>Edit</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.actionBtnDelete}
+                          onPress={() => handleDeleteGroup(group)}>
+                          <Text style={styles.actionBtnIcon}>🗑️</Text>
+                          <Text style={styles.actionBtnText}>Delete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+
+                {/* End of List Indicator */}
+                <View style={styles.endOfListContainer}>
+                  <Text style={styles.endOfListText}>— End of groups —</Text>
+                </View>
+              </>
+            )}
+          </View>
+        </ScrollView>
+
+        {/* Floating Action Button - Create New Group */}
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={openAddModal}
+          activeOpacity={0.8}>
+          <View style={styles.fabContent}>
+            <Text style={styles.fabIcon}>+</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
       {/* Add Group Modal */}
       <Modal
@@ -903,7 +901,7 @@ const GroupsScreen: React.FC<GroupsScreenProps> = ({navigation}) => {
                 </View>
                 <View style={[styles.infoSectionContent, styles.greenBorder]}>
                   <Text style={styles.infoSectionText}>
-                    Tap "Create New Group" to add a new group. Give it a
+                    Tap the + button to add a new group. Give it a
                     descriptive name so you can easily find it later when sending
                     messages.
                   </Text>
@@ -971,9 +969,12 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
     padding: 16,
-    paddingBottom: 30,
+    paddingBottom: 100, // Space for FAB
   },
   loadingContainer: {
     flex: 1,
@@ -1018,30 +1019,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: 4,
     textAlign: 'center',
-  },
-  // Create Button
-  createButton: {
-    backgroundColor: '#ea6118',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 16,
-    shadowColor: '#ea6118',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  createButtonIcon: {
-    fontSize: 18,
-  },
-  createButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ffffff',
   },
   // Search Card
   searchCard: {
@@ -1142,23 +1119,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 20,
-  },
-  addFirstButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ea6118',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    gap: 8,
-  },
-  addFirstButtonIcon: {
-    fontSize: 16,
-  },
-  addFirstButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
   },
   // Groups Grid
   groupsGrid: {
@@ -1272,6 +1232,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94a3b8',
   },
+  // Floating Action Button (FAB)
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#ea6118',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#ea6118',
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fabContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fabIcon: {
+    fontSize: 32,
+    fontWeight: '300',
+    color: '#ffffff',
+    marginTop: -2,
+  },
   // Modal Styles
   modalOverlay: {
     flex: 1,
@@ -1341,6 +1330,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 20,
     paddingTop: 16,
+    paddingBottom: 50,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
     gap: 12,
@@ -1620,6 +1610,7 @@ const styles = StyleSheet.create({
   bottomSheetFooter: {
     padding: 20,
     paddingTop: 16,
+    paddingBottom: 50,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
   },

@@ -423,7 +423,7 @@ function AppContent(): React.JSX.Element {
   if (isCheckingAuth) {
     return (
       <View style={styles.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <View style={styles.loadingContent}>
           <View style={styles.logoContainer}>
             <Text style={styles.logoSMS}>SMS</Text>

@@ -48,8 +48,8 @@ const CampaignDashboardScreen: React.FC<CampaignDashboardScreenProps> = ({naviga
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
       <Header 
         title="Campaign Manager" 
         onMenuPress={() => navigation.openDrawer()}

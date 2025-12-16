@@ -135,8 +135,8 @@ const BuySmsScreen: React.FC<Props> = ({navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header title="Buy SMS" onMenuPress={onMenuPress} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
@@ -147,8 +147,8 @@ const BuySmsScreen: React.FC<Props> = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
       <Header title="Buy SMS" onMenuPress={onMenuPress} />
       
       <ScrollView

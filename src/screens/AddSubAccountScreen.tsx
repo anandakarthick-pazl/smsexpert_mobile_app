@@ -12,8 +12,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Clipboard,
-  ToastAndroid,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
@@ -22,11 +20,11 @@ import {
   createSubAccount,
 } from '../services/accountsService';
 
-interface CampaignAddAccountScreenProps {
+interface AddSubAccountScreenProps {
   navigation: any;
 }
 
-const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navigation}) => {
+const AddSubAccountScreen: React.FC<AddSubAccountScreenProps> = ({navigation}) => {
   const [loading, setLoading] = useState(true);
   const [canAdd, setCanAdd] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,7 +62,6 @@ const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navi
       }
     } catch (error) {
       console.error('Error checking permissions:', error);
-      Alert.alert('Error', 'Failed to check permissions');
     } finally {
       setLoading(false);
     }
@@ -141,22 +138,10 @@ const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navi
     setMobile('');
   };
 
-  const copyCredentials = () => {
-    if (newAccountCredentials) {
-      const text = `Username: ${newAccountCredentials.username}\nPassword: ${newAccountCredentials.password}`;
-      Clipboard.setString(text);
-      if (Platform.OS === 'android') {
-        ToastAndroid.show('Credentials copied to clipboard', ToastAndroid.SHORT);
-      } else {
-        Alert.alert('Copied', 'Credentials copied to clipboard');
-      }
-    }
-  };
-
   const handleCloseSuccessModal = () => {
     setShowSuccessModal(false);
     setNewAccountCredentials(null);
-    navigation.navigate('CampaignAccounts');
+    navigation.navigate('ViewAccounts');
   };
 
   if (loading) {
@@ -166,10 +151,10 @@ const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navi
         <Header 
           title="New Sub-Account" 
           onMenuPress={() => navigation.openDrawer()}
-          walletBalance="£0.00"
+          walletBalance="£6,859.83"
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#7c3aed" />
+          <ActivityIndicator size="large" color="#ea6118" />
           <Text style={styles.loadingText}>Checking permissions...</Text>
         </View>
       </SafeAreaView>
@@ -183,7 +168,7 @@ const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navi
         <Header 
           title="New Sub-Account" 
           onMenuPress={() => navigation.openDrawer()}
-          walletBalance="£0.00"
+          walletBalance="£6,859.83"
         />
         <View style={styles.loadingContainer}>
           <Text style={styles.errorIcon}>🚫</Text>
@@ -205,7 +190,7 @@ const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navi
       <Header 
         title="New Sub-Account" 
         onMenuPress={() => navigation.openDrawer()}
-        walletBalance="£0.00"
+        walletBalance="£6,859.83"
       />
       
       <KeyboardAvoidingView 
@@ -387,13 +372,6 @@ const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navi
                     <Text style={styles.credentialValue}>{newAccountCredentials.password}</Text>
                   </View>
                 </View>
-                
-                <TouchableOpacity 
-                  style={styles.copyCredentialsButton}
-                  onPress={copyCredentials}>
-                  <Text style={styles.copyCredentialsIcon}>📋</Text>
-                  <Text style={styles.copyCredentialsText}>Copy Credentials</Text>
-                </TouchableOpacity>
               </View>
             )}
 
@@ -452,10 +430,9 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     marginBottom: 24,
-    paddingHorizontal: 20,
   },
   backButton: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#ea6118',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 10,
@@ -477,11 +454,11 @@ const styles = StyleSheet.create({
   },
   // Page Header
   pageHeader: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#ea6118',
     borderRadius: 15,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#7c3aed',
+    shadowColor: '#ea6118',
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -603,21 +580,21 @@ const styles = StyleSheet.create({
   },
   // Buttons
   submitButton: {
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#ea6118',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
     borderRadius: 10,
     marginBottom: 12,
-    shadowColor: '#7c3aed',
+    shadowColor: '#ea6118',
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   submitButtonDisabled: {
-    backgroundColor: '#a78bfa',
+    backgroundColor: '#f59e0b',
   },
   submitButtonIcon: {
     fontSize: 14,
@@ -656,7 +633,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 24,
     width: '100%',
-    maxWidth: 360,
+    maxWidth: 340,
     alignItems: 'center',
   },
   successIconContainer: {
@@ -717,25 +694,6 @@ const styles = StyleSheet.create({
     color: '#293B50',
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
-  copyCredentialsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#e2e8f0',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 4,
-  },
-  copyCredentialsIcon: {
-    fontSize: 14,
-    marginRight: 8,
-  },
-  copyCredentialsText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748b',
-  },
   warningBox: {
     flexDirection: 'row',
     backgroundColor: 'rgba(245, 158, 11, 0.1)',
@@ -773,4 +731,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CampaignAddAccountScreen;
+export default AddSubAccountScreen;

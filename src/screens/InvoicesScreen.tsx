@@ -75,6 +75,10 @@ const InvoicesScreen: React.FC<Props> = ({navigation}) => {
     navigation.navigate('InvoiceDetail', {invoiceId: invoice.invoice_ref});
   };
 
+  const handleBuySms = () => {
+    navigation.navigate('BuySms');
+  };
+
   const renderInvoiceItem = (invoice: Invoice) => (
     <TouchableOpacity
       key={invoice.id}
@@ -130,8 +134,8 @@ const InvoicesScreen: React.FC<Props> = ({navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header title="Invoices" onMenuPress={onMenuPress} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
@@ -146,136 +150,140 @@ const InvoicesScreen: React.FC<Props> = ({navigation}) => {
   const proformaCount = data?.invoices.filter(inv => !inv.is_paid).length || 0;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
       <Header title="Invoices" onMenuPress={onMenuPress} />
 
-      <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#ea6118']}
-          />
-        }
-        showsVerticalScrollIndicator={false}>
-        
-        {/* Summary Cards */}
-        <View style={styles.summaryContainer}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{data?.summary.total_invoices || 0}</Text>
-            <Text style={styles.summaryLabel}>Total Invoices</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>
-              {formatCurrency(data?.summary.total_amount || 0)}
-            </Text>
-            <Text style={styles.summaryLabel}>Total Amount</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{data?.summary.total_credit_notes || 0}</Text>
-            <Text style={styles.summaryLabel}>Credit Notes</Text>
-          </View>
-        </View>
-
-        {/* Tab Filter */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'all' && styles.tabActive]}
-            onPress={() => setActiveTab('all')}>
-            <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>
-              All ({data?.invoices.length || 0})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'paid' && styles.tabActive]}
-            onPress={() => setActiveTab('paid')}>
-            <Text style={[styles.tabText, activeTab === 'paid' && styles.tabTextActive]}>
-              Paid ({paidCount})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'proforma' && styles.tabActive]}
-            onPress={() => setActiveTab('proforma')}>
-            <Text style={[styles.tabText, activeTab === 'proforma' && styles.tabTextActive]}>
-              Pro Forma ({proformaCount})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'credits' && styles.tabActive]}
-            onPress={() => setActiveTab('credits')}>
-            <Text style={[styles.tabText, activeTab === 'credits' && styles.tabTextActive]}>
-              Credits ({data?.credit_notes.length || 0})
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Info Box */}
-        <View style={styles.infoBox}>
-          <Text style={styles.infoIcon}>👆</Text>
-          <Text style={styles.infoText}>
-            Tap on an invoice to view details
-          </Text>
-        </View>
-
-        {/* Content based on active tab */}
-        {activeTab === 'credits' ? (
-          <View style={styles.listCard}>
-            <View style={styles.listHeader}>
-              <Text style={styles.listTitle}>Credit Notes</Text>
+      <View style={styles.content}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#ea6118']}
+            />
+          }
+          showsVerticalScrollIndicator={false}>
+          
+          {/* Summary Cards */}
+          <View style={styles.summaryContainer}>
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryValue}>{data?.summary.total_invoices || 0}</Text>
+              <Text style={styles.summaryLabel}>Total Invoices</Text>
             </View>
-            {data?.credit_notes && data.credit_notes.length > 0 ? (
-              data.credit_notes.map(note => renderCreditNoteItem(note))
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>📝</Text>
-                <Text style={styles.emptyTitle}>No Credit Notes</Text>
-                <Text style={styles.emptyText}>
-                  You don't have any credit notes yet.
-                </Text>
-              </View>
-            )}
-          </View>
-        ) : (
-          <View style={styles.listCard}>
-            <View style={styles.listHeader}>
-              <Text style={styles.listTitle}>
-                {activeTab === 'all'
-                  ? 'All Invoices'
-                  : activeTab === 'paid'
-                  ? 'Paid Invoices'
-                  : 'Pro Forma Invoices'}
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryValue}>
+                {formatCurrency(data?.summary.total_amount || 0)}
               </Text>
+              <Text style={styles.summaryLabel}>Total Amount</Text>
             </View>
-            {filteredInvoices.length > 0 ? (
-              filteredInvoices.map(invoice => renderInvoiceItem(invoice))
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>🧾</Text>
-                <Text style={styles.emptyTitle}>No Invoices Found</Text>
-                <Text style={styles.emptyText}>
-                  {activeTab === 'paid'
-                    ? "You don't have any paid invoices yet."
-                    : activeTab === 'proforma'
-                    ? "You don't have any pending invoices."
-                    : "You don't have any invoices yet."}
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryValue}>{data?.summary.total_credit_notes || 0}</Text>
+              <Text style={styles.summaryLabel}>Credit Notes</Text>
+            </View>
+          </View>
+
+          {/* Tab Filter */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'all' && styles.tabActive]}
+              onPress={() => setActiveTab('all')}>
+              <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>
+                All ({data?.invoices.length || 0})
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'paid' && styles.tabActive]}
+              onPress={() => setActiveTab('paid')}>
+              <Text style={[styles.tabText, activeTab === 'paid' && styles.tabTextActive]}>
+                Paid ({paidCount})
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'proforma' && styles.tabActive]}
+              onPress={() => setActiveTab('proforma')}>
+              <Text style={[styles.tabText, activeTab === 'proforma' && styles.tabTextActive]}>
+                Pro Forma ({proformaCount})
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'credits' && styles.tabActive]}
+              onPress={() => setActiveTab('credits')}>
+              <Text style={[styles.tabText, activeTab === 'credits' && styles.tabTextActive]}>
+                Credits ({data?.credit_notes.length || 0})
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Info Box */}
+          <View style={styles.infoBox}>
+            <Text style={styles.infoIcon}>👆</Text>
+            <Text style={styles.infoText}>
+              Tap on an invoice to view details
+            </Text>
+          </View>
+
+          {/* Content based on active tab */}
+          {activeTab === 'credits' ? (
+            <View style={styles.listCard}>
+              <View style={styles.listHeader}>
+                <Text style={styles.listTitle}>Credit Notes</Text>
+              </View>
+              {data?.credit_notes && data.credit_notes.length > 0 ? (
+                data.credit_notes.map(note => renderCreditNoteItem(note))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyIcon}>📝</Text>
+                  <Text style={styles.emptyTitle}>No Credit Notes</Text>
+                  <Text style={styles.emptyText}>
+                    You don't have any credit notes yet.
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.listCard}>
+              <View style={styles.listHeader}>
+                <Text style={styles.listTitle}>
+                  {activeTab === 'all'
+                    ? 'All Invoices'
+                    : activeTab === 'paid'
+                    ? 'Paid Invoices'
+                    : 'Pro Forma Invoices'}
                 </Text>
               </View>
-            )}
-          </View>
-        )}
+              {filteredInvoices.length > 0 ? (
+                filteredInvoices.map(invoice => renderInvoiceItem(invoice))
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text style={styles.emptyIcon}>🧾</Text>
+                  <Text style={styles.emptyTitle}>No Invoices Found</Text>
+                  <Text style={styles.emptyText}>
+                    {activeTab === 'paid'
+                      ? "You don't have any paid invoices yet."
+                      : activeTab === 'proforma'
+                      ? "You don't have any pending invoices."
+                      : "You don't have any invoices yet."}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
-        {/* Buy SMS Button */}
+        </ScrollView>
+
+        {/* Floating Action Button (FAB) - Gmail style like Campaign History */}
         <TouchableOpacity
-          style={styles.buySmsButton}
-          onPress={() => navigation.navigate('BuySms')}>
-          <Text style={styles.buySmsIcon}>🛒</Text>
-          <Text style={styles.buySmsText}>Buy More SMS</Text>
+          style={styles.fab}
+          onPress={handleBuySms}
+          activeOpacity={0.8}>
+          <View style={styles.fabContent}>
+            <Text style={styles.fabIcon}>+</Text>
+          </View>
         </TouchableOpacity>
-
-        <View style={styles.bottomPadding} />
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 };
@@ -300,10 +308,16 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
     backgroundColor: '#f8fafc',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100, // Space for FAB
   },
   summaryContainer: {
     flexDirection: 'row',
@@ -508,26 +522,34 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     textAlign: 'center',
   },
-  buySmsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  // Floating Action Button (FAB) - Gmail style like Campaign History
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     backgroundColor: '#ea6118',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginTop: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#ea6118',
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  buySmsIcon: {
-    fontSize: 20,
-    marginRight: 10,
+  fabContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  buySmsText: {
+  fabIcon: {
+    fontSize: 32,
+    fontWeight: '300',
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  bottomPadding: {
-    height: 30,
+    marginTop: -2,
   },
 });
 

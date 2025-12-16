@@ -141,8 +141,8 @@ const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header 
           title="Blacklist" 
           onMenuPress={() => navigation.openDrawer()}
@@ -157,8 +157,8 @@ const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
       <Header 
         title="Blacklist" 
         onMenuPress={() => navigation.openDrawer()}
@@ -794,6 +794,7 @@ const styles = StyleSheet.create({
   bottomSheetFooter: {
     padding: 20,
     paddingTop: 10,
+    paddingBottom: 50,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
   },

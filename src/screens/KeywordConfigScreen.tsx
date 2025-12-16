@@ -660,8 +660,8 @@ const KeywordConfigScreen: React.FC<KeywordConfigScreenProps> = ({navigation, ro
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header
           title="Keyword Configuration"
           onMenuPress={() => navigation.openDrawer()}
@@ -702,8 +702,8 @@ const KeywordConfigScreen: React.FC<KeywordConfigScreenProps> = ({navigation, ro
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
 
       <Header
         title="Keyword Configuration"

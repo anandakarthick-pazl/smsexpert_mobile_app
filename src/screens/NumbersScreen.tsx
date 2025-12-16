@@ -582,8 +582,8 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header
           title="Numbers"
           onMenuPress={() => navigation.openDrawer()}
@@ -600,8 +600,8 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
 
       <Header
         title="Numbers"
@@ -621,177 +621,175 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
         </View>
       )}
 
-      <ScrollView
-        style={styles.content}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#ea6118']}
-            tintColor="#ea6118"
-          />
-        }>
-
-        {/* Statistics Summary */}
-        <View style={styles.statsCard}>
-          <Text style={styles.statsNumber}>{totalContacts}</Text>
-          <Text style={styles.statsLabel}>Total Contacts</Text>
-        </View>
-
-        {/* Action Buttons Grid */}
-        <View style={styles.actionButtonsGrid}>
-          <TouchableOpacity
-            style={styles.primaryActionButton}
-            onPress={openAddModal}>
-            <Text style={styles.actionButtonIcon}>➕</Text>
-            <Text style={styles.actionButtonText}>Add New Contact</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={styles.secondaryActionButton}
-            onPress={handleCleanBadNumbers}
-            disabled={cleaningNumbers || contacts.length === 0}>
-            <Text style={styles.actionButtonIcon}>🧹</Text>
-            <Text style={styles.actionButtonText}>Clean Bad Numbers</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Search Bar */}
-        <View style={styles.searchCard}>
-          <View style={styles.searchInputContainer}>
-            <Text style={styles.searchIcon}>🔍</Text>
-            <TextInput
-              style={styles.searchInput}
-              value={searchQuery}
-              onChangeText={handleSearch}
-              placeholder="Search contacts..."
-              placeholderTextColor="#94a3b8"
+      <View style={styles.content}>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={['#ea6118']}
+              tintColor="#ea6118"
             />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery('');
-                  fetchContacts();
-                }}>
-                <Text style={styles.clearIcon}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+          }>
 
-        {/* Contacts List Card */}
-        <View style={styles.resultsCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardHeaderIcon}>📱</Text>
-            <Text style={styles.cardHeaderTitle}>Your Contacts</Text>
-            <TouchableOpacity
-              style={styles.infoButtonSmall}
-              onPress={() => setShowInfoSheet(true)}>
-              <Text style={styles.infoButtonIcon}>ℹ️</Text>
-            </TouchableOpacity>
+          {/* Statistics Summary */}
+          <View style={styles.statsCard}>
+            <Text style={styles.statsNumber}>{totalContacts}</Text>
+            <Text style={styles.statsLabel}>Total Contacts</Text>
           </View>
 
-          {contacts.length === 0 ? (
-            <View style={styles.noDataContainer}>
-              <Text style={styles.noDataIcon}>📱</Text>
-              <Text style={styles.noDataTitle}>No Contacts Found</Text>
-              <Text style={styles.noDataText}>
-                {searchQuery
-                  ? 'No contacts match your search. Try a different keyword.'
-                  : 'Your address book is empty. Add contacts to get started.'}
-              </Text>
-              {!searchQuery && (
+          {/* Search Bar */}
+          <View style={styles.searchCard}>
+            <View style={styles.searchInputContainer}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                value={searchQuery}
+                onChangeText={handleSearch}
+                placeholder="Search contacts..."
+                placeholderTextColor="#94a3b8"
+              />
+              {searchQuery.length > 0 && (
                 <TouchableOpacity
-                  style={styles.addFirstButton}
-                  onPress={openAddModal}>
-                  <Text style={styles.addFirstButtonIcon}>➕</Text>
-                  <Text style={styles.addFirstButtonText}>Add First Contact</Text>
+                  onPress={() => {
+                    setSearchQuery('');
+                    fetchContacts();
+                  }}>
+                  <Text style={styles.clearIcon}>✕</Text>
                 </TouchableOpacity>
               )}
             </View>
-          ) : (
-            <>
-              {/* Contacts List */}
-              <View style={styles.contactsList}>
-                {contacts.map((contact, index) => (
-                  <View
-                    key={contact.id}
-                    style={[
-                      styles.contactItem,
-                      index === contacts.length - 1 && styles.lastContactItem,
-                    ]}>
-                    {/* Row 1: Name and Favourite */}
-                    <View style={styles.contactRow}>
-                      <View style={styles.contactLeft}>
-                        <View style={styles.contactAvatar}>
-                          <Text style={styles.contactAvatarText}>
-                            {contact.name?.charAt(0).toUpperCase() || '?'}
-                          </Text>
-                        </View>
-                        <View style={styles.contactInfo}>
-                          <Text style={styles.contactName}>{contact.name}</Text>
-                          <View style={styles.phoneRow}>
-                            <Text style={styles.phoneIcon}>📱</Text>
-                            <Text style={styles.phoneText}>{contact.phone}</Text>
+          </View>
+
+          {/* Contacts List Card */}
+          <View style={styles.resultsCard}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardHeaderIcon}>📱</Text>
+              <Text style={styles.cardHeaderTitle}>Your Contacts</Text>
+              <TouchableOpacity
+                style={styles.infoButtonSmall}
+                onPress={() => setShowInfoSheet(true)}>
+                <Text style={styles.infoButtonIcon}>ℹ️</Text>
+              </TouchableOpacity>
+            </View>
+
+            {contacts.length === 0 ? (
+              <View style={styles.noDataContainer}>
+                <Text style={styles.noDataIcon}>📱</Text>
+                <Text style={styles.noDataTitle}>No Contacts Found</Text>
+                <Text style={styles.noDataText}>
+                  {searchQuery
+                    ? 'No contacts match your search. Try a different keyword.'
+                    : 'Your address book is empty. Tap the + button to add contacts.'}
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* Contacts List */}
+                <View style={styles.contactsList}>
+                  {contacts.map((contact, index) => (
+                    <View
+                      key={contact.id}
+                      style={[
+                        styles.contactItem,
+                        index === contacts.length - 1 && styles.lastContactItem,
+                      ]}>
+                      {/* Row 1: Name and Favourite */}
+                      <View style={styles.contactRow}>
+                        <View style={styles.contactLeft}>
+                          <View style={styles.contactAvatar}>
+                            <Text style={styles.contactAvatarText}>
+                              {contact.name?.charAt(0).toUpperCase() || '?'}
+                            </Text>
+                          </View>
+                          <View style={styles.contactInfo}>
+                            <Text style={styles.contactName}>{contact.name}</Text>
+                            <View style={styles.phoneRow}>
+                              <Text style={styles.phoneIcon}>📱</Text>
+                              <Text style={styles.phoneText}>{contact.phone}</Text>
+                            </View>
                           </View>
                         </View>
+                        {/* Tappable Favourite Badge */}
+                        <TouchableOpacity
+                          style={[
+                            styles.favouriteBadge,
+                            contact.is_favourite
+                              ? styles.favouriteYes
+                              : styles.favouriteNo,
+                          ]}
+                          onPress={() => handleToggleFavourite(contact)}
+                          disabled={togglingFavourite === contact.id}>
+                          {togglingFavourite === contact.id ? (
+                            <ActivityIndicator size="small" color="#f59e0b" />
+                          ) : (
+                            <Text style={styles.favouriteText}>
+                              {contact.is_favourite ? '⭐' : '☆'}
+                            </Text>
+                          )}
+                        </TouchableOpacity>
                       </View>
-                      {/* Tappable Favourite Badge */}
-                      <TouchableOpacity
-                        style={[
-                          styles.favouriteBadge,
-                          contact.is_favourite
-                            ? styles.favouriteYes
-                            : styles.favouriteNo,
-                        ]}
-                        onPress={() => handleToggleFavourite(contact)}
-                        disabled={togglingFavourite === contact.id}>
-                        {togglingFavourite === contact.id ? (
-                          <ActivityIndicator size="small" color="#f59e0b" />
-                        ) : (
-                          <Text style={styles.favouriteText}>
-                            {contact.is_favourite ? '⭐' : '☆'}
+
+                      {/* Row 2: Network & Actions */}
+                      <View style={styles.contactActionsRow}>
+                        <View style={styles.networkBadge}>
+                          <Text style={styles.networkIcon}>📶</Text>
+                          <Text style={styles.networkText}>
+                            {contact.network || 'Unknown'}
                           </Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Row 2: Network & Actions */}
-                    <View style={styles.contactActionsRow}>
-                      <View style={styles.networkBadge}>
-                        <Text style={styles.networkIcon}>📶</Text>
-                        <Text style={styles.networkText}>
-                          {contact.network || 'Unknown'}
-                        </Text>
-                      </View>
-                      <View style={styles.actionsRow}>
-                        <TouchableOpacity
-                          style={styles.editButton}
-                          onPress={() => openEditModal(contact)}>
-                          <Text style={styles.actionIcon}>✏️</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.deleteButton}
-                          onPress={() => handleDeleteContact(contact)}>
-                          <Text style={styles.actionIcon}>🗑️</Text>
-                        </TouchableOpacity>
+                        </View>
+                        <View style={styles.actionsRow}>
+                          <TouchableOpacity
+                            style={styles.editButton}
+                            onPress={() => openEditModal(contact)}>
+                            <Text style={styles.actionIcon}>✏️</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => handleDeleteContact(contact)}>
+                            <Text style={styles.actionIcon}>🗑️</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                ))}
-              </View>
+                  ))}
+                </View>
 
-              {/* End of List Indicator */}
-              <View style={styles.endOfListContainer}>
-                <Text style={styles.endOfListText}>— End of contacts —</Text>
-              </View>
-            </>
-          )}
-        </View>
-      </ScrollView>
+                {/* End of List Indicator */}
+                <View style={styles.endOfListContainer}>
+                  <Text style={styles.endOfListText}>— End of contacts —</Text>
+                </View>
+              </>
+            )}
+          </View>
+        </ScrollView>
+
+        {/* Floating Action Buttons */}
+        {/* Secondary FAB - Clean Bad Numbers */}
+        <TouchableOpacity
+          style={[styles.fabSecondary, (cleaningNumbers || contacts.length === 0) && styles.fabDisabled]}
+          onPress={handleCleanBadNumbers}
+          disabled={cleaningNumbers || contacts.length === 0}
+          activeOpacity={0.8}>
+          <View style={styles.fabContent}>
+            <Text style={styles.fabIconEmoji}>🧹</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Primary FAB - Add Contact */}
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={openAddModal}
+          activeOpacity={0.8}>
+          <View style={styles.fabContent}>
+            <Text style={styles.fabIcon}>+</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
 
       {/* Add Contact Modal */}
       <Modal
@@ -916,9 +914,9 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
                 </View>
                 <View style={[styles.infoSectionContent, styles.redBorder]}>
                   <Text style={styles.infoSectionText}>
-                    Use the "Clean Bad Numbers" button to automatically find and
-                    remove contacts with invalid phone numbers (too short, invalid
-                    format, or fake numbers like all zeros).
+                    Use the 🧹 button to automatically find and remove contacts
+                    with invalid phone numbers (too short, invalid format, or
+                    fake numbers like all zeros).
                   </Text>
                 </View>
               </View>
@@ -968,9 +966,12 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
     padding: 16,
-    paddingBottom: 30,
+    paddingBottom: 100, // Space for FABs
   },
   loadingContainer: {
     flex: 1,
@@ -1036,50 +1037,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: 4,
-  },
-  // Action Buttons Grid
-  actionButtonsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  primaryActionButton: {
-    flex: 1,
-    backgroundColor: '#ea6118',
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#ea6118',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  secondaryActionButton: {
-    flex: 1,
-    backgroundColor: '#64748b',
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    shadowColor: '#64748b',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  actionButtonIcon: {
-    fontSize: 16,
-  },
-  actionButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#ffffff',
   },
   // Search Card
   searchCard: {
@@ -1180,23 +1137,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 20,
-  },
-  addFirstButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ea6118',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    gap: 8,
-  },
-  addFirstButtonIcon: {
-    fontSize: 16,
-  },
-  addFirstButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
   },
   // Contacts List
   contactsList: {
@@ -1333,6 +1273,58 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94a3b8',
   },
+  // Floating Action Button (FAB) - Gmail style like Campaign History
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#ea6118',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#ea6118',
+    shadowOffset: {width: 0, height: 6},
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fabSecondary: {
+    position: 'absolute',
+    bottom: 92,
+    right: 24,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#64748b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#64748b',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  fabDisabled: {
+    backgroundColor: '#cbd5e1',
+    shadowColor: '#cbd5e1',
+  },
+  fabContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fabIcon: {
+    fontSize: 32,
+    fontWeight: '300',
+    color: '#ffffff',
+    marginTop: -2,
+  },
+  fabIconEmoji: {
+    fontSize: 22,
+  },
   // Modal Styles
   modalOverlay: {
     flex: 1,
@@ -1438,6 +1430,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 20,
     paddingTop: 16,
+    paddingBottom: 50,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
     gap: 12,
@@ -1592,6 +1585,7 @@ const styles = StyleSheet.create({
   bottomSheetFooter: {
     padding: 20,
     paddingTop: 16,
+    paddingBottom: 50,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
   },

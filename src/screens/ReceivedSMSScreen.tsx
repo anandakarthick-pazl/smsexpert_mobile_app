@@ -351,8 +351,8 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
 
       <Header
       title="Received SMS"
@@ -1460,6 +1460,7 @@ const styles = StyleSheet.create({
   detailsModalFooter: {
     padding: 20,
     paddingTop: 16,
+    paddingBottom: 50,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
   },

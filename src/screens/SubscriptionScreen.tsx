@@ -10,7 +10,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   Switch,
+  StatusBar,
 } from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import {getSubscription, updateSubscription} from '../services/keywordsService';
 
@@ -117,15 +119,19 @@ const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({navigation, rout
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#ea6118" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#ea6118" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -330,7 +336,7 @@ const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({navigation, rout
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -352,7 +358,7 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#293b50',
-    paddingTop: 50,
+    paddingTop: 10,
     paddingBottom: 15,
     paddingHorizontal: 15,
     flexDirection: 'row',

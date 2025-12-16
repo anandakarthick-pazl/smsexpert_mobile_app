@@ -136,8 +136,8 @@ const SMSWalletScreen: React.FC<SMSWalletScreenProps> = ({navigation}) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header title="SMS Wallet" onMenuPress={onMenuPress} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
@@ -148,8 +148,8 @@ const SMSWalletScreen: React.FC<SMSWalletScreenProps> = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
 
       <Header title="SMS Wallet" onMenuPress={onMenuPress} />
 

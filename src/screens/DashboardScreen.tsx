@@ -208,8 +208,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation}) => {
   // Loading state
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header
           title="Dashboard"
           onMenuPress={() => navigation.openDrawer()}
@@ -225,8 +225,8 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation}) => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
 
       {/* Header */}
       <Header
