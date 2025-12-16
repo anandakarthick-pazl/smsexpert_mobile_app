@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
@@ -39,6 +43,8 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [cleaningNumbers, setCleaningNumbers] = useState(false);
+  const [togglingFavourite, setTogglingFavourite] = useState<number | null>(null);
   
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [totalContacts, setTotalContacts] = useState(0);
@@ -50,6 +56,9 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
   const [formEmail, setFormEmail] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [formFavourite, setFormFavourite] = useState(false);
+
+  // Search debounce ref
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchContacts = useCallback(async (search?: string) => {
     try {
@@ -77,10 +86,18 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
 
   const handleSearch = (text: string) => {
     setSearchQuery(text);
-    // Debounce search
-    setTimeout(() => {
-      fetchContacts(text);
-    }, 500);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Only search if no modal is open
+    if (!showAddModal && !showEditModal) {
+      searchTimeoutRef.current = setTimeout(() => {
+        fetchContacts(text);
+      }, 500);
+    }
   };
 
   const handleNotificationPress = () => {
@@ -100,6 +117,12 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
     setShowAddModal(true);
   };
 
+  const closeAddModal = () => {
+    Keyboard.dismiss();
+    setShowAddModal(false);
+    resetForm();
+  };
+
   const openEditModal = (contact: Contact) => {
     setSelectedContact(contact);
     setFormName(contact.name || '');
@@ -108,6 +131,13 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
     setFormNotes(contact.notes || '');
     setFormFavourite(contact.is_favourite || false);
     setShowEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    Keyboard.dismiss();
+    setShowEditModal(false);
+    setSelectedContact(null);
+    resetForm();
   };
 
   const handleAddContact = async () => {
@@ -120,6 +150,7 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
       return;
     }
 
+    Keyboard.dismiss();
     setSaving(true);
     try {
       const response = await createContact({
@@ -153,6 +184,7 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
       return;
     }
 
+    Keyboard.dismiss();
     setSaving(true);
     try {
       const response = await updateContact(selectedContact.id, {
@@ -206,170 +238,346 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
     );
   };
 
-  const handleDeleteAll = () => {
+  // Toggle Favourite directly from list
+  const handleToggleFavourite = async (contact: Contact) => {
+    setTogglingFavourite(contact.id);
+    try {
+      const newFavouriteStatus = !contact.is_favourite;
+      const response = await updateContact(contact.id, {
+        is_favourite: newFavouriteStatus,
+      });
+
+      if (response.success) {
+        // Update local state immediately for better UX
+        setContacts(prevContacts =>
+          prevContacts.map(c =>
+            c.id === contact.id ? {...c, is_favourite: newFavouriteStatus} : c
+          )
+        );
+      } else {
+        Alert.alert('Error', response.message || 'Failed to update favourite status');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to update favourite status');
+    } finally {
+      setTogglingFavourite(null);
+    }
+  };
+
+  // Clean Bad Numbers - removes contacts with invalid phone numbers
+  const handleCleanBadNumbers = () => {
+    // Find contacts with potentially bad numbers
+    const badNumbers = contacts.filter(contact => {
+      const phone = contact.phone || '';
+      // Check for invalid patterns:
+      // - Too short (less than 10 digits)
+      // - Contains non-numeric characters (except + at start)
+      // - All same digits
+      // - Starts with invalid prefix
+      const digitsOnly = phone.replace(/\D/g, '');
+      
+      if (digitsOnly.length < 10) return true;
+      if (digitsOnly.length > 15) return true;
+      if (/^(\d)\1+$/.test(digitsOnly)) return true; // All same digits like 0000000000
+      if (/^0{5,}/.test(digitsOnly)) return true; // Starts with many zeros
+      
+      return false;
+    });
+
+    if (badNumbers.length === 0) {
+      Alert.alert(
+        '✅ All Numbers Valid',
+        'Great news! All your contact numbers appear to be valid. No cleaning needed.',
+        [{text: 'OK'}]
+      );
+      return;
+    }
+
     Alert.alert(
-      'Delete All Contacts',
-      'You are about to delete all of your address book contacts.\n\nThis action cannot be undone. Are you sure?',
+      '🧹 Clean Bad Numbers',
+      `Found ${badNumbers.length} contact(s) with potentially invalid phone numbers:\n\n${badNumbers
+        .slice(0, 5)
+        .map(c => `• ${c.name}: ${c.phone}`)
+        .join('\n')}${badNumbers.length > 5 ? `\n... and ${badNumbers.length - 5} more` : ''}\n\nDo you want to remove these contacts?`,
       [
         {text: 'Cancel', style: 'cancel'},
         {
-          text: 'Delete All',
+          text: 'Remove All',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Info', 'This feature will be available soon.');
+          onPress: async () => {
+            setCleaningNumbers(true);
+            let deleted = 0;
+            let failed = 0;
+
+            for (const contact of badNumbers) {
+              try {
+                const response = await deleteContact(contact.id);
+                if (response.success) {
+                  deleted++;
+                } else {
+                  failed++;
+                }
+              } catch (error) {
+                failed++;
+              }
+            }
+
+            setCleaningNumbers(false);
+            
+            if (deleted > 0) {
+              Alert.alert(
+                '✅ Cleaning Complete',
+                `Successfully removed ${deleted} contact(s) with bad numbers.${failed > 0 ? `\n${failed} contact(s) could not be removed.` : ''}`,
+                [{text: 'OK', onPress: () => fetchContacts(searchQuery)}]
+              );
+            } else {
+              Alert.alert('Error', 'Failed to remove contacts. Please try again.');
+            }
           },
         },
       ]
     );
   };
 
-  const handleDownloadAll = () => {
-    Alert.alert('Download', 'This feature will be available soon.');
-  };
-
-  const handleCleanBadNumbers = () => {
-    Alert.alert('Clean Numbers', 'This feature will be available soon.');
-  };
-
-  // Contact Form Modal Component
-  const ContactFormModal = ({
-    visible,
-    onClose,
-    onSave,
-    title,
-    isEdit,
-  }: {
-    visible: boolean;
-    onClose: () => void;
-    onSave: () => void;
-    title: string;
-    isEdit: boolean;
-  }) => (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="slide"
-      onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <View style={styles.formModalContainer}>
-          {/* Modal Header */}
-          <View style={styles.formModalHeader}>
-            <View style={styles.formModalTitleRow}>
-              <Text style={styles.formModalIcon}>{isEdit ? '✏️' : '➕'}</Text>
-              <Text style={styles.formModalTitle}>{title}</Text>
-            </View>
-            <TouchableOpacity style={styles.modalCloseBtn} onPress={onClose}>
-              <Text style={styles.modalCloseBtnText}>✕</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Modal Body */}
-          <ScrollView style={styles.formModalBody} showsVerticalScrollIndicator={false}>
-            {/* Name Field */}
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>
-                Name <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.formInput}
-                value={formName}
-                onChangeText={setFormName}
-                placeholder="Enter contact name"
-                placeholderTextColor="#94a3b8"
-              />
-            </View>
-
-            {/* Phone Field */}
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>
-                Phone Number <Text style={styles.requiredStar}>*</Text>
-              </Text>
-              <TextInput
-                style={styles.formInput}
-                value={formPhone}
-                onChangeText={setFormPhone}
-                placeholder="Enter phone number"
-                placeholderTextColor="#94a3b8"
-                keyboardType="phone-pad"
-                editable={!isEdit}
-              />
-              {isEdit && (
-                <Text style={styles.helperText}>
-                  Phone number cannot be changed after creation
-                </Text>
-              )}
-            </View>
-
-            {/* Email Field */}
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Email (Optional)</Text>
-              <TextInput
-                style={styles.formInput}
-                value={formEmail}
-                onChangeText={setFormEmail}
-                placeholder="Enter email address"
-                placeholderTextColor="#94a3b8"
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-
-            {/* Notes Field */}
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Notes (Optional)</Text>
-              <TextInput
-                style={[styles.formInput, styles.textArea]}
-                value={formNotes}
-                onChangeText={setFormNotes}
-                placeholder="Add notes about this contact"
-                placeholderTextColor="#94a3b8"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            </View>
-
-            {/* Favourite Toggle */}
-            <View style={styles.switchRow}>
-              <View style={styles.switchLabelContainer}>
-                <Text style={styles.switchIcon}>⭐</Text>
-                <Text style={styles.switchLabel}>Mark as Favourite</Text>
-              </View>
-              <Switch
-                value={formFavourite}
-                onValueChange={setFormFavourite}
-                trackColor={{false: '#e2e8f0', true: '#ea6118'}}
-                thumbColor={formFavourite ? '#fff' : '#f4f3f4'}
-              />
-            </View>
-          </ScrollView>
-
-          {/* Modal Footer */}
-          <View style={styles.formModalFooter}>
-            <TouchableOpacity
-              style={[styles.formButton, styles.cancelButton]}
-              onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.formButton, styles.saveButton]}
-              onPress={onSave}
-              disabled={saving}>
-              {saving ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.saveButtonIcon}>💾</Text>
-                  <Text style={styles.saveButtonText}>
-                    {isEdit ? 'Update' : 'Save'}
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+  // Render Add Modal Content
+  const renderAddModalContent = () => (
+    <View style={styles.formModalContainer}>
+      {/* Modal Header */}
+      <View style={styles.formModalHeader}>
+        <View style={styles.formModalTitleRow}>
+          <Text style={styles.formModalIcon}>➕</Text>
+          <Text style={styles.formModalTitle}>Add New Contact</Text>
         </View>
+        <TouchableOpacity style={styles.modalCloseBtn} onPress={closeAddModal}>
+          <Text style={styles.modalCloseBtnText}>✕</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+
+      {/* Modal Body */}
+      <ScrollView 
+        style={styles.formModalBody} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="always"
+        nestedScrollEnabled={true}>
+        {/* Name Field */}
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>
+            Name <Text style={styles.requiredStar}>*</Text>
+          </Text>
+          <TextInput
+            style={styles.formInput}
+            value={formName}
+            onChangeText={setFormName}
+            placeholder="Enter contact name"
+            placeholderTextColor="#94a3b8"
+            autoCorrect={false}
+          />
+        </View>
+
+        {/* Phone Field */}
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>
+            Phone Number <Text style={styles.requiredStar}>*</Text>
+          </Text>
+          <TextInput
+            style={styles.formInput}
+            value={formPhone}
+            onChangeText={setFormPhone}
+            placeholder="Enter phone number"
+            placeholderTextColor="#94a3b8"
+            keyboardType="phone-pad"
+          />
+        </View>
+
+        {/* Email Field */}
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>Email (Optional)</Text>
+          <TextInput
+            style={styles.formInput}
+            value={formEmail}
+            onChangeText={setFormEmail}
+            placeholder="Enter email address"
+            placeholderTextColor="#94a3b8"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+
+        {/* Notes Field */}
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>Notes (Optional)</Text>
+          <TextInput
+            style={[styles.formInput, styles.textArea]}
+            value={formNotes}
+            onChangeText={setFormNotes}
+            placeholder="Add notes about this contact"
+            placeholderTextColor="#94a3b8"
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+        </View>
+
+        {/* Favourite Toggle */}
+        <View style={styles.switchRow}>
+          <View style={styles.switchLabelContainer}>
+            <Text style={styles.switchIcon}>⭐</Text>
+            <Text style={styles.switchLabel}>Mark as Favourite</Text>
+          </View>
+          <Switch
+            value={formFavourite}
+            onValueChange={setFormFavourite}
+            trackColor={{false: '#e2e8f0', true: '#ea6118'}}
+            thumbColor={formFavourite ? '#fff' : '#f4f3f4'}
+          />
+        </View>
+      </ScrollView>
+
+      {/* Modal Footer */}
+      <View style={styles.formModalFooter}>
+        <TouchableOpacity
+          style={[styles.formButton, styles.cancelButton]}
+          onPress={closeAddModal}>
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.formButton, styles.saveButton]}
+          onPress={handleAddContact}
+          disabled={saving}>
+          {saving ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Text style={styles.saveButtonIcon}>💾</Text>
+              <Text style={styles.saveButtonText}>Save</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  // Render Edit Modal Content
+  const renderEditModalContent = () => (
+    <View style={styles.formModalContainer}>
+      {/* Modal Header */}
+      <View style={styles.formModalHeader}>
+        <View style={styles.formModalTitleRow}>
+          <Text style={styles.formModalIcon}>✏️</Text>
+          <Text style={styles.formModalTitle}>Edit Contact</Text>
+        </View>
+        <TouchableOpacity style={styles.modalCloseBtn} onPress={closeEditModal}>
+          <Text style={styles.modalCloseBtnText}>✕</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Modal Body */}
+      <ScrollView 
+        style={styles.formModalBody} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="always"
+        nestedScrollEnabled={true}>
+        {/* Name Field */}
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>
+            Name <Text style={styles.requiredStar}>*</Text>
+          </Text>
+          <TextInput
+            style={styles.formInput}
+            value={formName}
+            onChangeText={setFormName}
+            placeholder="Enter contact name"
+            placeholderTextColor="#94a3b8"
+            autoCorrect={false}
+          />
+        </View>
+
+        {/* Phone Field */}
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>
+            Phone Number <Text style={styles.requiredStar}>*</Text>
+          </Text>
+          <TextInput
+            style={[styles.formInput, styles.disabledInput]}
+            value={formPhone}
+            editable={false}
+            placeholder="Enter phone number"
+            placeholderTextColor="#94a3b8"
+            keyboardType="phone-pad"
+          />
+          <Text style={styles.helperText}>
+            Phone number cannot be changed after creation
+          </Text>
+        </View>
+
+        {/* Email Field */}
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>Email (Optional)</Text>
+          <TextInput
+            style={styles.formInput}
+            value={formEmail}
+            onChangeText={setFormEmail}
+            placeholder="Enter email address"
+            placeholderTextColor="#94a3b8"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
+
+        {/* Notes Field */}
+        <View style={styles.formGroup}>
+          <Text style={styles.formLabel}>Notes (Optional)</Text>
+          <TextInput
+            style={[styles.formInput, styles.textArea]}
+            value={formNotes}
+            onChangeText={setFormNotes}
+            placeholder="Add notes about this contact"
+            placeholderTextColor="#94a3b8"
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+        </View>
+
+        {/* Favourite Toggle */}
+        <View style={styles.switchRow}>
+          <View style={styles.switchLabelContainer}>
+            <Text style={styles.switchIcon}>⭐</Text>
+            <Text style={styles.switchLabel}>Mark as Favourite</Text>
+          </View>
+          <Switch
+            value={formFavourite}
+            onValueChange={setFormFavourite}
+            trackColor={{false: '#e2e8f0', true: '#ea6118'}}
+            thumbColor={formFavourite ? '#fff' : '#f4f3f4'}
+          />
+        </View>
+      </ScrollView>
+
+      {/* Modal Footer */}
+      <View style={styles.formModalFooter}>
+        <TouchableOpacity
+          style={[styles.formButton, styles.cancelButton]}
+          onPress={closeEditModal}>
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.formButton, styles.saveButton]}
+          onPress={handleUpdateContact}
+          disabled={saving}>
+          {saving ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <>
+              <Text style={styles.saveButtonIcon}>💾</Text>
+              <Text style={styles.saveButtonText}>Update</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 
   if (loading) {
@@ -403,10 +611,21 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
         walletBalance="£6859"
       />
 
+      {/* Cleaning Overlay */}
+      {cleaningNumbers && (
+        <View style={styles.cleaningOverlay}>
+          <View style={styles.cleaningBox}>
+            <ActivityIndicator size="large" color="#ea6118" />
+            <Text style={styles.cleaningText}>Cleaning bad numbers...</Text>
+          </View>
+        </View>
+      )}
+
       <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -415,17 +634,6 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
             tintColor="#ea6118"
           />
         }>
-
-        {/* Info Card */}
-        <View style={styles.infoCard}>
-          <View style={styles.infoCardHeader}>
-            <Text style={styles.infoCardIcon}>ℹ️</Text>
-            <Text style={styles.infoCardTitle}>Manage Your Contact Numbers</Text>
-          </View>
-          <Text style={styles.infoCardText}>
-            This is your personal address book where you can store and manage phone numbers for easy SMS sending. You can add individual contacts and organize them by marking favourites.
-          </Text>
-        </View>
 
         {/* Statistics Summary */}
         <View style={styles.statsCard}>
@@ -444,7 +652,8 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
           
           <TouchableOpacity
             style={styles.secondaryActionButton}
-            onPress={handleCleanBadNumbers}>
+            onPress={handleCleanBadNumbers}
+            disabled={cleaningNumbers || contacts.length === 0}>
             <Text style={styles.actionButtonIcon}>🧹</Text>
             <Text style={styles.actionButtonText}>Clean Bad Numbers</Text>
           </TouchableOpacity>
@@ -530,17 +739,24 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
                           </View>
                         </View>
                       </View>
-                      <View
+                      {/* Tappable Favourite Badge */}
+                      <TouchableOpacity
                         style={[
                           styles.favouriteBadge,
                           contact.is_favourite
                             ? styles.favouriteYes
                             : styles.favouriteNo,
-                        ]}>
-                        <Text style={styles.favouriteText}>
-                          {contact.is_favourite ? '⭐' : '☆'}
-                        </Text>
-                      </View>
+                        ]}
+                        onPress={() => handleToggleFavourite(contact)}
+                        disabled={togglingFavourite === contact.id}>
+                        {togglingFavourite === contact.id ? (
+                          <ActivityIndicator size="small" color="#f59e0b" />
+                        ) : (
+                          <Text style={styles.favouriteText}>
+                            {contact.is_favourite ? '⭐' : '☆'}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
                     </View>
 
                     {/* Row 2: Network & Actions */}
@@ -575,55 +791,43 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
             </>
           )}
         </View>
-
-        {/* Backup & Maintenance Section */}
-        {contacts.length > 0 && (
-          <View style={styles.backupCard}>
-            <View style={styles.backupHeader}>
-              <Text style={styles.backupIcon}>💾</Text>
-              <Text style={styles.backupTitle}>Backup & Maintenance</Text>
-            </View>
-            <View style={styles.backupActions}>
-              <TouchableOpacity
-                style={styles.backupButton}
-                onPress={handleDownloadAll}>
-                <Text style={styles.backupButtonIcon}>⬇️</Text>
-                <Text style={styles.backupButtonText}>Download All Contacts</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.backupButton, styles.dangerButton]}
-                onPress={handleDeleteAll}>
-                <Text style={styles.backupButtonIcon}>🗑️</Text>
-                <Text style={[styles.backupButtonText, styles.dangerText]}>
-                  Delete ALL Contacts
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
       </ScrollView>
 
       {/* Add Contact Modal */}
-      <ContactFormModal
+      <Modal
         visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSave={handleAddContact}
-        title="Add New Contact"
-        isEdit={false}
-      />
+        transparent={true}
+        animationType="slide"
+        statusBarTranslucent={true}
+        onRequestClose={closeAddModal}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              {renderAddModalContent()}
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Edit Contact Modal */}
-      <ContactFormModal
+      <Modal
         visible={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setSelectedContact(null);
-          resetForm();
-        }}
-        onSave={handleUpdateContact}
-        title="Edit Contact"
-        isEdit={true}
-      />
+        transparent={true}
+        animationType="slide"
+        statusBarTranslucent={true}
+        onRequestClose={closeEditModal}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              {renderEditModalContent()}
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
 
       {/* Info Bottom Sheet Modal */}
       <Modal
@@ -696,9 +900,25 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
                 </View>
                 <View style={[styles.infoSectionContent, styles.yellowBorder]}>
                   <Text style={styles.infoSectionText}>
-                    Mark your frequently used contacts as favourites for quick
-                    access. Favourite contacts appear at the top of your contact
-                    list when sending messages.
+                    Tap the star icon on any contact to mark them as favourite.
+                    Favourite contacts are easier to find and select when sending messages.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Clean Bad Numbers Section */}
+              <View style={styles.infoSection}>
+                <View style={styles.infoSectionHeader}>
+                  <View style={[styles.infoSectionIconBox, styles.redBg]}>
+                    <Text style={styles.infoSectionIcon}>🧹</Text>
+                  </View>
+                  <Text style={styles.infoSectionTitle}>Clean Bad Numbers</Text>
+                </View>
+                <View style={[styles.infoSectionContent, styles.redBorder]}>
+                  <Text style={styles.infoSectionText}>
+                    Use the "Clean Bad Numbers" button to automatically find and
+                    remove contacts with invalid phone numbers (too short, invalid
+                    format, or fake numbers like all zeros).
                   </Text>
                 </View>
               </View>
@@ -765,33 +985,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
   },
-  // Info Card
-  infoCard: {
-    backgroundColor: '#f0f9ff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: '#0891b2',
-  },
-  infoCardHeader: {
-    flexDirection: 'row',
+  // Cleaning Overlay
+  cleaningOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
+    zIndex: 1000,
   },
-  infoCardIcon: {
-    fontSize: 18,
-    marginRight: 8,
+  cleaningBox: {
+    backgroundColor: '#ffffff',
+    padding: 30,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  infoCardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0891b2',
-  },
-  infoCardText: {
-    fontSize: 14,
-    color: '#64748b',
-    lineHeight: 22,
+  cleaningText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#293B50',
   },
   // Stats Card
   statsCard: {
@@ -1037,20 +1258,24 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
   favouriteBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
   favouriteYes: {
     backgroundColor: '#fef3c7',
+    borderWidth: 2,
+    borderColor: '#f59e0b',
   },
   favouriteNo: {
     backgroundColor: '#f1f5f9',
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
   },
   favouriteText: {
-    fontSize: 18,
+    fontSize: 20,
   },
   contactActionsRow: {
     flexDirection: 'row',
@@ -1107,56 +1332,6 @@ const styles = StyleSheet.create({
   endOfListText: {
     fontSize: 12,
     color: '#94a3b8',
-  },
-  // Backup Card
-  backupCard: {
-    backgroundColor: '#f8fafc',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-  },
-  backupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  backupIcon: {
-    fontSize: 18,
-    marginRight: 10,
-  },
-  backupTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#293B50',
-  },
-  backupActions: {
-    gap: 12,
-  },
-  backupButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#ea6118',
-    borderRadius: 10,
-    padding: 14,
-    gap: 8,
-  },
-  backupButtonIcon: {
-    fontSize: 16,
-  },
-  backupButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ea6118',
-  },
-  dangerButton: {
-    borderColor: '#dc2626',
-  },
-  dangerText: {
-    color: '#dc2626',
   },
   // Modal Styles
   modalOverlay: {
@@ -1222,6 +1397,10 @@ const styles = StyleSheet.create({
     padding: 14,
     fontSize: 15,
     color: '#293B50',
+  },
+  disabledInput: {
+    backgroundColor: '#e2e8f0',
+    color: '#94a3b8',
   },
   textArea: {
     height: 80,
@@ -1371,6 +1550,9 @@ const styles = StyleSheet.create({
   purpleBg: {
     backgroundColor: '#ede9fe',
   },
+  redBg: {
+    backgroundColor: '#fee2e2',
+  },
   infoSectionIcon: {
     fontSize: 18,
   },
@@ -1397,6 +1579,9 @@ const styles = StyleSheet.create({
   },
   purpleBorder: {
     borderLeftColor: '#8b5cf6',
+  },
+  redBorder: {
+    borderLeftColor: '#dc2626',
   },
   infoSectionText: {
     fontSize: 14,
