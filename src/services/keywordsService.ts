@@ -89,6 +89,55 @@ export interface AvailabilityResponse {
   message: string;
 }
 
+export interface SmsForwarderResponse {
+  success: boolean;
+  data: {
+    keyword: string;
+    shortcode_number: string;
+    fwd_mobile: string;
+    wallet_balance: string;
+  };
+  message?: string;
+}
+
+export interface SubscriptionResponse {
+  success: boolean;
+  data: {
+    keyword: string;
+    shortcode_number: string;
+    subscribe_response: string;
+    unsubscribe_response: string;
+    fail_response: string;
+    max_subscribers: string | number;
+    send_mobiles: string;
+  };
+  message?: string;
+}
+
+export interface WapPushResponderResponse {
+  success: boolean;
+  data: {
+    keyword: string;
+    shortcode_number: string;
+    title: string;
+    url: string;
+  };
+  message?: string;
+}
+
+export interface ModuleInfoResponse {
+  success: boolean;
+  data: {
+    keyword: string;
+    shortcode_number: string;
+    module: string;
+    can_enable: boolean;
+    conflicting_modules: string[];
+    message: string;
+  };
+  message?: string;
+}
+
 // Get all keywords
 export const getKeywords = async (): Promise<KeywordsResponse> => {
   const token = await getToken();
@@ -382,6 +431,234 @@ export const checkKeywordAvailability = async (
   return data;
 };
 
+// Get SMS Forwarder settings
+export const getSmsForwarder = async (
+  keywordId: number,
+): Promise<SmsForwarderResponse> => {
+  const token = await getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(
+    `${API_CONFIG.BASE_URL}keywords/${keywordId}/sms-forwarder`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to fetch SMS Forwarder settings');
+  }
+
+  return data;
+};
+
+// Update SMS Forwarder settings
+export const updateSmsForwarder = async (
+  keywordId: number,
+  params: {
+    fwd_mobile: string;
+  },
+): Promise<{success: boolean; message: string}> => {
+  const token = await getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(
+    `${API_CONFIG.BASE_URL}keywords/${keywordId}/sms-forwarder`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(params),
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update SMS Forwarder');
+  }
+
+  return data;
+};
+
+// Get Subscription settings
+export const getSubscription = async (
+  keywordId: number,
+): Promise<SubscriptionResponse> => {
+  const token = await getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(
+    `${API_CONFIG.BASE_URL}keywords/${keywordId}/subscription`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to fetch Subscription settings');
+  }
+
+  return data;
+};
+
+// Update Subscription settings
+export const updateSubscription = async (
+  keywordId: number,
+  params: {
+    subscribe_response: string;
+    unsubscribe_response: string;
+    fail_response: string;
+    max_subscribers?: number | null;
+    send_mobiles?: string;
+  },
+): Promise<{success: boolean; message: string}> => {
+  const token = await getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(
+    `${API_CONFIG.BASE_URL}keywords/${keywordId}/subscription`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(params),
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update Subscription');
+  }
+
+  return data;
+};
+
+// Get WAP Push Responder settings
+export const getWapPushResponder = async (
+  keywordId: number,
+): Promise<WapPushResponderResponse> => {
+  const token = await getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(
+    `${API_CONFIG.BASE_URL}keywords/${keywordId}/wap-push-responder`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to fetch WAP Push Responder settings');
+  }
+
+  return data;
+};
+
+// Update WAP Push Responder settings
+export const updateWapPushResponder = async (
+  keywordId: number,
+  params: {
+    title: string;
+    url: string;
+  },
+): Promise<{success: boolean; message: string}> => {
+  const token = await getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(
+    `${API_CONFIG.BASE_URL}keywords/${keywordId}/wap-push-responder`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(params),
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update WAP Push Responder');
+  }
+
+  return data;
+};
+
+// Get Module Info (Business Card, Voting restrictions)
+export const getModuleInfo = async (
+  keywordId: number,
+  module: string,
+): Promise<ModuleInfoResponse> => {
+  const token = await getToken();
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(
+    `${API_CONFIG.BASE_URL}keywords/${keywordId}/module-info/${module}`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to fetch module info');
+  }
+
+  return data;
+};
+
 // Export all functions as default object
 export default {
   getKeywords,
@@ -393,4 +670,11 @@ export default {
   addSubkeyword,
   deleteSubkeyword,
   checkKeywordAvailability,
+  getSmsForwarder,
+  updateSmsForwarder,
+  getSubscription,
+  updateSubscription,
+  getWapPushResponder,
+  updateWapPushResponder,
+  getModuleInfo,
 };

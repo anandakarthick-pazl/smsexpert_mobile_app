@@ -14,5 +14,6 @@ export * from './smsService';
 export * from './receivedSmsService';
 export * from './sentSmsService';
 export * from './keywordsService';
+export * from './numbersService';
 
 export {default as apiConfig} from './api.config';

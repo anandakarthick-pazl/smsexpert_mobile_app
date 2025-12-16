@@ -12,6 +12,9 @@ interface HeaderProps {
   onMenuPress: () => void;
   onNotificationPress?: () => void;
   notificationCount?: number;
+  showBack?: boolean;
+  onBackPress?: () => void;
+  walletBalance?: string;
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -19,22 +22,40 @@ const Header: React.FC<HeaderProps> = ({
   onMenuPress,
   onNotificationPress,
   notificationCount = 0,
+  showBack = false,
+  onBackPress,
+  walletBalance,
 }) => {
   return (
     <View style={styles.header}>
-      {/* Menu Button */}
-      <Pressable
-        style={({pressed}) => [
-          styles.menuButton,
-          pressed && styles.menuButtonPressed,
-        ]}
-        onPress={() => {
-          console.log('Menu button pressed');
-          onMenuPress();
-        }}
-        hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
-        <Text style={styles.menuIcon}>☰</Text>
-      </Pressable>
+      {/* Left Button - Menu or Back */}
+      {showBack ? (
+        <Pressable
+          style={({pressed}) => [
+            styles.menuButton,
+            pressed && styles.menuButtonPressed,
+          ]}
+          onPress={() => {
+            console.log('Back button pressed');
+            onBackPress?.();
+          }}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+          <Text style={styles.backIcon}>←</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={({pressed}) => [
+            styles.menuButton,
+            pressed && styles.menuButtonPressed,
+          ]}
+          onPress={() => {
+            console.log('Menu button pressed');
+            onMenuPress();
+          }}
+          hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+          <Text style={styles.menuIcon}>☰</Text>
+        </Pressable>
+      )}
 
       {/* Title */}
       <View style={styles.headerCenter}>
@@ -88,6 +109,11 @@ const styles = StyleSheet.create({
   menuIcon: {
     fontSize: 22,
     color: '#ffffff',
+  },
+  backIcon: {
+    fontSize: 24,
+    color: '#ffffff',
+    fontWeight: '600',
   },
   headerCenter: {
     flex: 1,

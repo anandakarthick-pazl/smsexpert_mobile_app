@@ -30,6 +30,14 @@ import CampaignHistoryScreen from './src/screens/CampaignHistoryScreen';
 import CampaignBlacklistScreen from './src/screens/CampaignBlacklistScreen';
 import CampaignAccountsScreen from './src/screens/CampaignAccountsScreen';
 import CampaignAddAccountScreen from './src/screens/CampaignAddAccountScreen';
+import KeywordConfigScreen from './src/screens/KeywordConfigScreen';
+import SmsResponderScreen from './src/screens/SmsResponderScreen';
+import EmailForwarderScreen from './src/screens/EmailForwarderScreen';
+import SmsForwarderScreen from './src/screens/SmsForwarderScreen';
+import SubscriptionScreen from './src/screens/SubscriptionScreen';
+import WapPushResponderScreen from './src/screens/WapPushResponderScreen';
+import BusinessCardScreen from './src/screens/BusinessCardScreen';
+import VotingScreen from './src/screens/VotingScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import SidebarModal from './src/components/SidebarModal';
 
@@ -50,6 +58,14 @@ type ScreenName =
   | 'ReceivedSMS'
   | 'SentSMS' 
   | 'Keywords' 
+  | 'KeywordConfig'
+  | 'SmsResponder'
+  | 'EmailForwarder'
+  | 'SmsForwarder'
+  | 'Subscription'
+  | 'WapPushResponder'
+  | 'BusinessCard'
+  | 'Voting'
   | 'Numbers' 
   | 'Groups' 
   | 'Profile' 
@@ -440,6 +456,22 @@ function AppContent(): React.JSX.Element {
         return <SentSMSScreen navigation={navigation} />;
       case 'Keywords':
         return <KeywordsScreen navigation={navigation} />;
+      case 'KeywordConfig':
+        return <KeywordConfigScreen navigation={navigation} route={routeParams} />;
+      case 'SmsResponder':
+        return <SmsResponderScreen navigation={navigation} route={routeParams} />;
+      case 'EmailForwarder':
+        return <EmailForwarderScreen navigation={navigation} route={routeParams} />;
+      case 'SmsForwarder':
+        return <SmsForwarderScreen navigation={navigation} route={routeParams} />;
+      case 'Subscription':
+        return <SubscriptionScreen navigation={navigation} route={routeParams} />;
+      case 'WapPushResponder':
+        return <WapPushResponderScreen navigation={navigation} route={routeParams} />;
+      case 'BusinessCard':
+        return <BusinessCardScreen navigation={navigation} route={routeParams} />;
+      case 'Voting':
+        return <VotingScreen navigation={navigation} route={routeParams} />;
       case 'Numbers':
         return <NumbersScreen navigation={navigation} />;
       case 'Groups':
