@@ -496,7 +496,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 100,
   },
-  // Page Header
   pageHeader: {
     backgroundColor: '#ea6118',
     borderRadius: 15,
@@ -528,7 +527,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     lineHeight: 18,
   },
-  // Statistics Row
   statsRow: {
     flexDirection: 'row',
     gap: 10,
@@ -567,7 +565,6 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
   },
-  // Data Card
   dataCard: {
     backgroundColor: '#ffffff',
     borderRadius: 15,
@@ -607,11 +604,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    overflow: 'hidden',
   },
   cardBody: {
     padding: 0,
   },
-  // Table Row
   tableRow: {
     padding: 16,
     borderBottomWidth: 1,
@@ -738,7 +735,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 6,
   },
-  // Empty State
   emptyState: {
     padding: 40,
     alignItems: 'center',
@@ -751,7 +747,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
   },
-  // Transfer Card
   transferCard: {
     backgroundColor: '#ffffff',
     borderRadius: 15,
@@ -812,7 +807,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#ffffff',
   },
-  // Floating Action Button (FAB)
   fab: {
     position: 'absolute',
     bottom: 24,
@@ -841,7 +835,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginTop: -2,
   },
-  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -874,7 +867,6 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginBottom: 20,
   },
-  // Form
   formGroup: {
     marginBottom: 16,
   },
@@ -933,7 +925,6 @@ const styles = StyleSheet.create({
     color: '#293B50',
     textAlign: 'center',
   },
-  // Modal Buttons
   modalButtons: {
     flexDirection: 'row',
     gap: 12,
