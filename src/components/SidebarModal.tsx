@@ -11,6 +11,7 @@ import {
   Alert,
   TouchableWithoutFeedback,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -115,6 +116,7 @@ interface SidebarModalProps {
   isCampaignMode: boolean;
   onModeChange: (isCampaign: boolean) => void;
   dashboardAccess?: string; // m, c, a, mc, ca, mca - for campaign menu filtering
+  isLoggingOut?: boolean; // Show loading state during logout
 }
 
 const SidebarModal: React.FC<SidebarModalProps> = ({
@@ -129,6 +131,7 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   isCampaignMode,
   onModeChange,
   dashboardAccess = 'mca', // Default to full access
+  isLoggingOut = false,
 }) => {
   const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -237,12 +240,9 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
           text: 'Logout All',
           style: 'destructive',
           onPress: () => {
-            handleClose();
-            setTimeout(() => {
-              if (onLogoutAllDevices) {
-                onLogoutAllDevices();
-              }
-            }, 300);
+            if (onLogoutAllDevices) {
+              onLogoutAllDevices();
+            }
           },
         },
       ]
@@ -259,10 +259,7 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
           text: 'Logout',
           style: 'destructive',
           onPress: () => {
-            handleClose();
-            setTimeout(() => {
-              onLogout();
-            }, 300);
+            onLogout();
           },
         },
       ]
@@ -285,11 +282,21 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
       visible={visible}
       transparent={true}
       animationType="none"
-      onRequestClose={handleClose}
+      onRequestClose={isLoggingOut ? undefined : handleClose}
       statusBarTranslucent={true}>
       <View style={styles.modalContainer}>
+        {/* Logout Loading Overlay */}
+        {isLoggingOut && (
+          <View style={styles.logoutOverlay}>
+            <View style={styles.logoutLoaderContainer}>
+              <ActivityIndicator size="large" color="#ea6118" />
+              <Text style={styles.logoutLoaderText}>Logging out...</Text>
+            </View>
+          </View>
+        )}
+
         {/* Backdrop */}
-        <TouchableWithoutFeedback onPress={handleClose}>
+        <TouchableWithoutFeedback onPress={isLoggingOut ? undefined : handleClose}>
           <Animated.View style={[styles.backdrop, {opacity: fadeAnim}]} />
         </TouchableWithoutFeedback>
 
@@ -310,7 +317,8 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
                 styles.closeButton,
                 pressed && styles.closeButtonPressed,
               ]} 
-              onPress={handleClose}>
+              onPress={handleClose}
+              disabled={isLoggingOut}>
               <Text style={styles.closeIcon}>✕</Text>
             </Pressable>
           </View>
@@ -436,11 +444,19 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
             <Pressable
               style={({pressed}) => [
                 styles.logoutButton,
-                pressed && styles.logoutButtonPressed,
+                pressed && !isLoggingOut && styles.logoutButtonPressed,
+                isLoggingOut && styles.logoutButtonDisabled,
               ]}
-              onPress={handleLogout}>
-              <Text style={styles.logoutIcon}>🚪</Text>
-              <Text style={styles.logoutText}>Logout</Text>
+              onPress={handleLogout}
+              disabled={isLoggingOut}>
+              {isLoggingOut ? (
+                <ActivityIndicator size="small" color="#dc3545" />
+              ) : (
+                <>
+                  <Text style={styles.logoutIcon}>🚪</Text>
+                  <Text style={styles.logoutText}>Logout</Text>
+                </>
+              )}
             </Pressable>
           </View>
         </Animated.View>
@@ -453,6 +469,31 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     flexDirection: 'row',
+  },
+  logoutOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  logoutLoaderContainer: {
+    backgroundColor: '#293B50',
+    paddingHorizontal: 40,
+    paddingVertical: 30,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  logoutLoaderText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -711,6 +752,9 @@ const styles = StyleSheet.create({
   },
   logoutButtonPressed: {
     backgroundColor: 'rgba(220, 53, 69, 0.3)',
+  },
+  logoutButtonDisabled: {
+    opacity: 0.6,
   },
   logoutIcon: {
     fontSize: 15,

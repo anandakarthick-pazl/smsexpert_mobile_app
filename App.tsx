@@ -123,6 +123,7 @@ function AppContentWithNotifications(): React.JSX.Element {
     message: string;
     endTime: string | null;
   }>({enabled: false, message: '', endTime: null});
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   // Get toast functions
   const {showToast, showSuccess} = useToast();
@@ -492,7 +493,9 @@ function AppContentWithNotifications(): React.JSX.Element {
 
   const handleLogout = async () => {
     console.log('Logging out...');
-    setSidebarVisible(false);
+    
+    // Show loading indicator
+    setIsLoggingOut(true);
     
     try {
       // Unregister FCM token on logout
@@ -523,13 +526,19 @@ function AppContentWithNotifications(): React.JSX.Element {
     setUserData(null);
     setWalletBalance('£0.00');
     
+    // Hide loading and close sidebar
+    setIsLoggingOut(false);
+    setSidebarVisible(false);
+    
     // Navigate to login
     setCurrentScreen('Login');
   };
 
   const handleLogoutAllDevices = async () => {
     console.log('Logging out from all devices...');
-    setSidebarVisible(false);
+    
+    // Show loading indicator
+    setIsLoggingOut(true);
     
     try {
       // Unregister FCM token
@@ -559,6 +568,10 @@ function AppContentWithNotifications(): React.JSX.Element {
     // Clear user data
     setUserData(null);
     setWalletBalance('£0.00');
+    
+    // Hide loading and close sidebar
+    setIsLoggingOut(false);
+    setSidebarVisible(false);
     
     // Navigate to login
     setCurrentScreen('Login');
@@ -797,6 +810,7 @@ function AppContentWithNotifications(): React.JSX.Element {
           isCampaignMode={isCampaignMode}
           onModeChange={handleModeChange}
           dashboardAccess={userData?.dashboard_access || 'mca'}
+          isLoggingOut={isLoggingOut}
         />
       )}
     </WalletContext.Provider>

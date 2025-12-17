@@ -243,6 +243,14 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({navigation, 
                 <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
+
+            {/* API Warning */}
+            <View style={styles.apiWarningBox}>
+              <Text style={styles.apiWarningIcon}>⚠️</Text>
+              <Text style={styles.apiWarningText}>
+                Please be advised if you use an API with the SMS Expert software and you change your password, this may affect your API.
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -450,6 +458,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#64748b',
+  },
+  // API Warning
+  apiWarningBox: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 16,
+    alignItems: 'flex-start',
+  },
+  apiWarningIcon: {
+    fontSize: 14,
+    marginRight: 10,
+    marginTop: 1,
+  },
+  apiWarningText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#b91c1c',
+    lineHeight: 18,
   },
 });
 
