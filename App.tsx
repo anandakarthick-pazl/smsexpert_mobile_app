@@ -5,6 +5,7 @@
 import React, {useState, useEffect, useCallback, useRef} from 'react';
 import {StatusBar, View, ActivityIndicator, StyleSheet, Text} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import LoginScreen from './src/screens/LoginScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
@@ -50,6 +51,9 @@ import * as authService from './src/services/authService';
 import {User} from './src/services/authService';
 import {getWalletBalance, formatWalletBalance} from './src/services/walletService';
 import * as notificationService from './src/services/notificationService';
+
+// Storage key for app mode
+const APP_MODE_KEY = '@sms_expert_app_mode';
 
 type ScreenName = 
   | 'Login' 
@@ -104,6 +108,7 @@ function AppContent(): React.JSX.Element {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [userData, setUserData] = useState<User | null>(null);
   const [walletBalance, setWalletBalance] = useState<string>('£0.00');
+  const [isCampaignMode, setIsCampaignMode] = useState(false);
   
   // Get toast functions
   const {showToast, showSuccess} = useToast();
@@ -134,6 +139,20 @@ function AppContent(): React.JSX.Element {
       refreshWalletBalance();
     }
   }, [currentScreen, userData]);
+
+  /**
+   * Load saved app mode from AsyncStorage
+   */
+  const loadAppMode = async (): Promise<boolean> => {
+    try {
+      const savedMode = await AsyncStorage.getItem(APP_MODE_KEY);
+      console.log('Loaded app mode from storage:', savedMode);
+      return savedMode === 'campaign';
+    } catch (error) {
+      console.error('Error loading app mode:', error);
+      return false;
+    }
+  };
 
   /**
    * Setup FCM notification listeners
@@ -246,6 +265,11 @@ function AppContent(): React.JSX.Element {
     try {
       console.log('Checking authentication status...');
       
+      // Load saved app mode
+      const savedCampaignMode = await loadAppMode();
+      setIsCampaignMode(savedCampaignMode);
+      console.log('App mode is campaign:', savedCampaignMode);
+      
       // Check if authService functions are available
       if (!authService || typeof authService.isAuthenticated !== 'function') {
         console.log('Auth service not available, showing login');
@@ -263,7 +287,15 @@ function AppContent(): React.JSX.Element {
         if (user) {
           console.log('User data found:', user.username);
           setUserData(user);
-          setCurrentScreen('Dashboard');
+          
+          // Navigate to the correct dashboard based on saved mode
+          if (savedCampaignMode) {
+            console.log('Navigating to Campaign Dashboard (saved mode)');
+            setCurrentScreen('CampaignHome');
+          } else {
+            console.log('Navigating to Dashboard (saved mode)');
+            setCurrentScreen('Dashboard');
+          }
           
           // Refresh wallet balance
           refreshWalletBalance();
@@ -321,6 +353,11 @@ function AppContent(): React.JSX.Element {
   const closeSidebar = () => {
     console.log('Closing sidebar');
     setSidebarVisible(false);
+  };
+
+  const handleModeChange = (newCampaignMode: boolean) => {
+    console.log('Mode changed to:', newCampaignMode ? 'Campaign' : 'Dashboard');
+    setIsCampaignMode(newCampaignMode);
   };
 
   const handleLogout = async () => {
@@ -398,6 +435,21 @@ function AppContent(): React.JSX.Element {
       // Show success toast
       showSuccess('Login successful! Welcome back.');
       
+      // Load saved app mode and navigate accordingly
+      const savedCampaignMode = await loadAppMode();
+      setIsCampaignMode(savedCampaignMode);
+      
+      console.log('Login - Saved campaign mode:', savedCampaignMode);
+      
+      // Navigate to the correct dashboard based on saved mode
+      if (savedCampaignMode) {
+        console.log('Login - Navigating to Campaign Dashboard');
+        setCurrentScreen('CampaignHome');
+      } else {
+        console.log('Login - Navigating to Dashboard');
+        setCurrentScreen('Dashboard');
+      }
+      
       // Refresh wallet from API to get latest balance
       setTimeout(() => {
         refreshWalletBalance();
@@ -413,7 +465,14 @@ function AppContent(): React.JSX.Element {
   const navigation = {
     navigate,
     openDrawer: openSidebar,
-    goBack: () => navigate('Dashboard'),
+    goBack: () => {
+      // Go back to appropriate dashboard based on mode
+      if (isCampaignMode) {
+        navigate('CampaignHome');
+      } else {
+        navigate('Dashboard');
+      }
+    },
     reset: ({routes}: {index: number; routes: {name: string}[]}) => {
       setCurrentScreen(routes[0].name as ScreenName);
     },
@@ -533,6 +592,8 @@ function AppContent(): React.JSX.Element {
           currentRoute={currentScreen}
           userName={userInfo.userName}
           companyName={userInfo.companyName}
+          isCampaignMode={isCampaignMode}
+          onModeChange={handleModeChange}
         />
       )}
     </WalletContext.Provider>

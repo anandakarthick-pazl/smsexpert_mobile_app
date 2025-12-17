@@ -10,12 +10,16 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import WalletContext from App
 import {WalletContext} from '../../App';
 
 const {width} = Dimensions.get('window');
 const SIDEBAR_WIDTH = 250;
+
+// Storage key for app mode
+const APP_MODE_KEY = '@sms_expert_app_mode';
 
 interface MenuItem {
   name: string;
@@ -62,6 +66,8 @@ interface SidebarModalProps {
   currentRoute: string;
   userName?: string;
   companyName?: string;
+  isCampaignMode: boolean;
+  onModeChange: (isCampaign: boolean) => void;
 }
 
 const SidebarModal: React.FC<SidebarModalProps> = ({
@@ -73,10 +79,11 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   currentRoute,
   userName = 'John Doe',
   companyName = 'Dashboard User',
+  isCampaignMode,
+  onModeChange,
 }) => {
   const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [isCampaignMode, setIsCampaignMode] = useState(false);
 
   // Get wallet balance from context
   const {walletBalance} = useContext(WalletContext);
@@ -114,8 +121,26 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
     onNavigate(route);
   };
 
-  const handleSwitchMode = () => {
-    setIsCampaignMode(!isCampaignMode);
+  const handleSwitchMode = async () => {
+    const newMode = !isCampaignMode;
+    
+    // Save mode to AsyncStorage
+    try {
+      await AsyncStorage.setItem(APP_MODE_KEY, newMode ? 'campaign' : 'dashboard');
+      console.log('App mode saved:', newMode ? 'campaign' : 'dashboard');
+    } catch (error) {
+      console.error('Error saving app mode:', error);
+    }
+    
+    // Update mode in parent
+    onModeChange(newMode);
+    
+    // Navigate to appropriate dashboard
+    if (newMode) {
+      onNavigate('CampaignHome');
+    } else {
+      onNavigate('Dashboard');
+    }
   };
 
   const handleClose = () => {

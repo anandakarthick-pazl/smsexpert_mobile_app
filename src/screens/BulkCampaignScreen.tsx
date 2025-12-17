@@ -8,13 +8,13 @@ import {
   StatusBar,
   Alert,
   TextInput,
-  Modal,
   ActivityIndicator,
   RefreshControl,
   Share,
   Platform,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import DocumentPicker from 'react-native-document-picker';
 import Header from '../components/Header';
 import {
   uploadBulkCampaign,
@@ -22,17 +22,6 @@ import {
   getCsvFormatGuide,
   CSVColumn,
 } from '../services/campaignService';
-
-// Note: You'll need to install react-native-document-picker
-// npm install react-native-document-picker
-// or use expo-document-picker for Expo projects
-
-let DocumentPicker: any;
-try {
-  DocumentPicker = require('react-native-document-picker').default;
-} catch (e) {
-  console.log('react-native-document-picker not installed');
-}
 
 interface BulkCampaignScreenProps {
   navigation: any;
@@ -90,62 +79,61 @@ const BulkCampaignScreen: React.FC<BulkCampaignScreenProps> = ({navigation}) => 
   };
 
   const handleSelectFile = async () => {
-    if (!DocumentPicker) {
-      // Fallback for when document picker is not available
-      Alert.alert(
-        'File Picker Not Available',
-        'The file picker is not available. Please install react-native-document-picker.',
-        [
-          {
-            text: 'Simulate Selection',
-            onPress: () => setSelectedFile({
-              uri: 'file://mock/campaign_data.csv',
-              name: 'campaign_data.csv',
-              type: 'text/csv',
-              size: 1024,
-            }),
-          },
-          {text: 'Cancel', style: 'cancel'},
-        ]
-      );
-      return;
-    }
-
     try {
+      console.log('Opening document picker...');
+      
       const result = await DocumentPicker.pick({
         type: [DocumentPicker.types.allFiles],
         copyTo: 'cachesDirectory',
       });
 
+      console.log('Document picker result:', result);
+
       const file = result[0];
       
       // Validate file extension
-      const extension = file.name?.split('.').pop()?.toLowerCase();
+      const fileName = file.name || 'unknown';
+      const extension = fileName.split('.').pop()?.toLowerCase();
+      
       if (extension !== 'csv') {
-        Alert.alert('Invalid File', 'Please select a CSV file.');
+        Alert.alert(
+          'Invalid File Type',
+          'Please select a CSV file. Only .csv files are allowed for bulk campaign uploads.'
+        );
         return;
       }
 
       // Validate file size (100MB max)
       if (file.size && file.size > 104857600) {
-        Alert.alert('File Too Large', 'Maximum file size is 100MB.');
+        Alert.alert(
+          'File Too Large',
+          'Maximum file size is 100MB. Please select a smaller file.'
+        );
         return;
       }
 
       setSelectedFile({
         uri: file.fileCopyUri || file.uri,
-        name: file.name || 'campaign.csv',
+        name: fileName,
         type: file.type || 'text/csv',
-        size: file.size,
+        size: file.size || undefined,
       });
+
+      console.log('File selected successfully:', {
+        name: fileName,
+        uri: file.fileCopyUri || file.uri,
+        size: file.size,
+        type: file.type,
+      });
+
     } catch (error: any) {
       if (DocumentPicker.isCancel(error)) {
-        // User cancelled
-        console.log('File selection cancelled');
-      } else {
-        console.error('File selection error:', error);
-        Alert.alert('Error', 'Failed to select file. Please try again.');
+        console.log('User cancelled file selection');
+        return;
       }
+      
+      console.error('File selection error:', error);
+      Alert.alert('Error', 'Failed to select file. Please try again.');
     }
   };
 
@@ -370,7 +358,7 @@ const BulkCampaignScreen: React.FC<BulkCampaignScreenProps> = ({navigation}) => 
                 ) : (
                   <>
                     <Text style={styles.uploadIcon}>☁️</Text>
-                    <Text style={styles.uploadTitle}>Drag & drop your CSV file here</Text>
+                    <Text style={styles.uploadTitle}>Tap to select your CSV file</Text>
                     <Text style={styles.uploadOr}>or</Text>
                     <View style={styles.browseButton}>
                       <Text style={styles.browseButtonText}>Browse Files</Text>
@@ -800,18 +788,18 @@ const styles = StyleSheet.create({
   },
   // Action Buttons
   actionButtons: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: 12,
   },
   submitButton: {
-    flex: 1,
     backgroundColor: '#16a34a',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderRadius: 10,
-    minHeight: 50,
+    minHeight: 54,
     shadowColor: '#16a34a',
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.3,
@@ -822,13 +810,14 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   submitButtonIcon: {
-    fontSize: 16,
-    marginRight: 8,
+    fontSize: 18,
+    marginRight: 10,
   },
   submitButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     color: '#ffffff',
+    textAlign: 'center',
   },
   cancelButton: {
     backgroundColor: '#f1f5f9',
