@@ -33,9 +33,11 @@ interface NumbersScreenProps {
     openDrawer: () => void;
     goBack: () => void;
   };
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
+const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [showInfoSheet, setShowInfoSheet] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -100,9 +102,6 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
     }
   };
 
-  const handleNotificationPress = () => {
-    Alert.alert('Notifications', 'You have 3 new notifications');
-  };
 
   const resetForm = () => {
     setFormName('');
@@ -587,8 +586,8 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
         <Header
           title="Numbers"
           onMenuPress={() => navigation.openDrawer()}
-          onNotificationPress={handleNotificationPress}
-          notificationCount={3}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£6859"
         />
         <View style={styles.loadingContainer}>
@@ -606,8 +605,8 @@ const NumbersScreen: React.FC<NumbersScreenProps> = ({navigation}) => {
       <Header
         title="Numbers"
         onMenuPress={() => navigation.openDrawer()}
-        onNotificationPress={handleNotificationPress}
-        notificationCount={3}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£6859"
       />
 

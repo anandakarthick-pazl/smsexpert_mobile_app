@@ -33,9 +33,11 @@ interface SendNewSMSScreenProps {
     openDrawer: () => void;
     goBack: () => void;
   };
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
+const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   // Loading States
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -438,8 +440,8 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
         <Header
           title="Send New SMS"
           onMenuPress={() => navigation.openDrawer()}
-          onNotificationPress={() => {}}
-          notificationCount={0}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
@@ -458,8 +460,8 @@ const SendNewSMSScreen: React.FC<SendNewSMSScreenProps> = ({navigation}) => {
       <Header
         title="Send New SMS"
         onMenuPress={() => navigation.openDrawer()}
-        onNotificationPress={() => Alert.alert('Notifications', 'Coming soon')}
-        notificationCount={0}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance={smsData?.wallet.formatted}
       />
 

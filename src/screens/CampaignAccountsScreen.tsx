@@ -28,9 +28,11 @@ import {
 
 interface CampaignAccountsScreenProps {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigation}) => {
+const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -200,6 +202,8 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
         <Header 
           title="View Accounts" 
           onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£0.00"
         />
         <View style={styles.loadingContainer}>
@@ -216,6 +220,8 @@ const CampaignAccountsScreen: React.FC<CampaignAccountsScreenProps> = ({navigati
       <Header 
         title="View Accounts" 
         onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance={statistics?.total_wallet_formatted || '£0.00'}
       />
       

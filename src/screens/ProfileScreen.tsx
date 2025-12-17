@@ -29,9 +29,11 @@ interface ProfileScreenProps {
     openDrawer: () => void;
     goBack: () => void;
   };
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
+const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [showSenderIdInfo, setShowSenderIdInfo] = useState(false);
   const [showPasswordInfo, setShowPasswordInfo] = useState(false);
   const [showIpInfo, setShowIpInfo] = useState(false);
@@ -102,9 +104,6 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
     fetchProfile();
   };
 
-  const handleNotificationPress = () => {
-    Alert.alert('Notifications', 'You have 3 new notifications');
-  };
 
   const updateProfileField = (field: keyof ProfileData, value: string) => {
     setProfileData(prev => ({...prev, [field]: value}));
@@ -285,8 +284,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
         <Header
           title="Client Profile"
           onMenuPress={() => navigation.openDrawer()}
-          onNotificationPress={handleNotificationPress}
-          notificationCount={3}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£6859"
         />
         <View style={styles.loadingContainer}>
@@ -304,8 +303,8 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({navigation}) => {
       <Header
         title="Client Profile"
         onMenuPress={() => navigation.openDrawer()}
-        onNotificationPress={handleNotificationPress}
-        notificationCount={3}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£6859"
       />
 

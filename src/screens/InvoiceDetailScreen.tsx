@@ -21,9 +21,11 @@ import {getInvoiceDetail, formatCurrency, InvoiceDetail} from '../services/walle
 interface Props {
   navigation: any;
   route: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const InvoiceDetailScreen: React.FC<Props> = ({navigation, route}) => {
+const InvoiceDetailScreen: React.FC<Props> = ({navigation, route, onNotificationPress, notificationCount = 0}) => {
   const onMenuPress = () => navigation.openDrawer();
   const {invoiceId} = route.params;
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,8 @@ const InvoiceDetailScreen: React.FC<Props> = ({navigation, route}) => {
         <Header
           title="Invoice Details"
           onMenuPress={onMenuPress}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           showBack
           onBackPress={() => navigation.goBack()}
         />
@@ -78,6 +82,8 @@ const InvoiceDetailScreen: React.FC<Props> = ({navigation, route}) => {
         <Header
           title="Invoice Details"
           onMenuPress={onMenuPress}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           showBack
           onBackPress={() => navigation.goBack()}
         />
@@ -100,6 +106,8 @@ const InvoiceDetailScreen: React.FC<Props> = ({navigation, route}) => {
       <Header
         title={`Invoice #${invoice.invoice_ref}`}
         onMenuPress={onMenuPress}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         showBack
         onBackPress={() => navigation.goBack()}
       />

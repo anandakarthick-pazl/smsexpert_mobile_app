@@ -24,9 +24,11 @@ import {
 
 interface CampaignAddAccountScreenProps {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navigation}) => {
+const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [loading, setLoading] = useState(true);
   const [canAdd, setCanAdd] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -166,6 +168,8 @@ const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navi
         <Header 
           title="New Sub-Account" 
           onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£0.00"
         />
         <View style={styles.loadingContainer}>
@@ -183,6 +187,8 @@ const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navi
         <Header 
           title="New Sub-Account" 
           onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£0.00"
         />
         <View style={styles.loadingContainer}>
@@ -205,6 +211,8 @@ const CampaignAddAccountScreen: React.FC<CampaignAddAccountScreenProps> = ({navi
       <Header 
         title="New Sub-Account" 
         onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£0.00"
       />
       

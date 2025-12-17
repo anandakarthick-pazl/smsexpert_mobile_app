@@ -26,9 +26,11 @@ import {
 
 interface BlacklistScreenProps {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
+const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showInfoSheet, setShowInfoSheet] = useState(false);
@@ -146,6 +148,8 @@ const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
         <Header 
           title="Blacklist" 
           onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£6,859.83"
         />
         <View style={styles.loadingContainer}>
@@ -162,6 +166,8 @@ const BlacklistScreen: React.FC<BlacklistScreenProps> = ({navigation}) => {
       <Header 
         title="Blacklist" 
         onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£6,859.83"
       />
       

@@ -22,9 +22,11 @@ import {
 
 interface QuickCampaignScreenProps {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) => {
+const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   // Loading states
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -185,6 +187,8 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
         <Header 
           title="Quick Campaign" 
           onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£6,859.83"
         />
         <View style={styles.loadingContainer}>
@@ -201,6 +205,8 @@ const QuickCampaignScreen: React.FC<QuickCampaignScreenProps> = ({navigation}) =
       <Header 
         title="Quick Campaign" 
         onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£6,859.83"
       />
       

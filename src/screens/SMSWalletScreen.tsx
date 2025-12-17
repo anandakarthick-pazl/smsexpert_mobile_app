@@ -27,9 +27,11 @@ import {
 
 interface SMSWalletScreenProps {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const SMSWalletScreen: React.FC<SMSWalletScreenProps> = ({navigation}) => {
+const SMSWalletScreen: React.FC<SMSWalletScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const onMenuPress = () => navigation.openDrawer();
   // Loading states
   const [loading, setLoading] = useState(true);
@@ -138,7 +140,7 @@ const SMSWalletScreen: React.FC<SMSWalletScreenProps> = ({navigation}) => {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
-        <Header title="SMS Wallet" onMenuPress={onMenuPress} />
+        <Header title="SMS Wallet" onMenuPress={onMenuPress} onNotificationPress={onNotificationPress} notificationCount={notificationCount} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
           <Text style={styles.loadingText}>Loading...</Text>
@@ -151,7 +153,7 @@ const SMSWalletScreen: React.FC<SMSWalletScreenProps> = ({navigation}) => {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
 
-      <Header title="SMS Wallet" onMenuPress={onMenuPress} />
+      <Header title="SMS Wallet" onMenuPress={onMenuPress} onNotificationPress={onNotificationPress} notificationCount={notificationCount} />
 
       <ScrollView
         style={styles.content}

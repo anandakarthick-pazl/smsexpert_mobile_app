@@ -34,9 +34,11 @@ interface ContractsScreenProps {
     openDrawer: () => void;
     goBack: () => void;
   };
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const ContractsScreen: React.FC<ContractsScreenProps> = ({navigation}) => {
+const ContractsScreen: React.FC<ContractsScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const {width} = useWindowDimensions();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -100,9 +102,6 @@ const ContractsScreen: React.FC<ContractsScreenProps> = ({navigation}) => {
     fetchContracts();
   };
 
-  const handleNotificationPress = () => {
-    Alert.alert('Notifications', 'You have 3 new notifications');
-  };
 
   const handleViewContract = async (contract: ContractItem) => {
     setLoadingContract(true);
@@ -372,8 +371,8 @@ const ContractsScreen: React.FC<ContractsScreenProps> = ({navigation}) => {
         <Header
           title="Contracts"
           onMenuPress={() => navigation.openDrawer()}
-          onNotificationPress={handleNotificationPress}
-          notificationCount={3}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£6859"
         />
         <View style={styles.loadingContainer}>
@@ -391,8 +390,8 @@ const ContractsScreen: React.FC<ContractsScreenProps> = ({navigation}) => {
       <Header
         title="Contracts"
         onMenuPress={() => navigation.openDrawer()}
-        onNotificationPress={handleNotificationPress}
-        notificationCount={3}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£6859"
       />
 

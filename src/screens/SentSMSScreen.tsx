@@ -28,9 +28,11 @@ import {
 
 interface Props {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const SentSMSScreen: React.FC<Props> = ({ navigation }) => {
+const SentSMSScreen: React.FC<Props> = ({ navigation, onNotificationPress, notificationCount = 0 }) => {
   // State
   const [messages, setMessages] = useState<SentMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -718,7 +720,7 @@ const SentSMSScreen: React.FC<Props> = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
-        <Header title="Sent SMS" onMenuPress={() => navigation.openDrawer()} />
+        <Header title="Sent SMS" onMenuPress={() => navigation.openDrawer()} onNotificationPress={onNotificationPress} notificationCount={notificationCount} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
           <Text style={styles.loadingText}>Loading sent messages...</Text>
@@ -731,7 +733,7 @@ const SentSMSScreen: React.FC<Props> = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor="#293B50" />
-        <Header title="Sent SMS" onMenuPress={() => navigation.openDrawer()} />
+        <Header title="Sent SMS" onMenuPress={() => navigation.openDrawer()} onNotificationPress={onNotificationPress} notificationCount={notificationCount} />
         <View style={styles.errorContainer}>
           <Text style={styles.errorIcon}>⚠️</Text>
           <Text style={styles.errorTitle}>Error</Text>
@@ -747,7 +749,7 @@ const SentSMSScreen: React.FC<Props> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
-      <Header title="Sent SMS" onMenuPress={() => navigation.openDrawer()} />
+      <Header title="Sent SMS" onMenuPress={() => navigation.openDrawer()} onNotificationPress={onNotificationPress} notificationCount={notificationCount} />
 
       <View style={styles.content}>
         {/* Filter Button */}

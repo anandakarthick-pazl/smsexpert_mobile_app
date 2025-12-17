@@ -24,9 +24,11 @@ import {
 
 interface DeliveryReceiptScreenProps {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation}) => {
+const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -165,6 +167,8 @@ const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation
         <Header 
           title="Delivery Receipt" 
           onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£6,859.83"
         />
         <View style={styles.loadingContainer}>
@@ -181,6 +185,8 @@ const DeliveryReceiptScreen: React.FC<DeliveryReceiptScreenProps> = ({navigation
       <Header 
         title="Delivery Receipt" 
         onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£6,859.83"
       />
       

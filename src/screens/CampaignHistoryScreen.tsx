@@ -25,9 +25,11 @@ import {
 
 interface CampaignHistoryScreenProps {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const CampaignHistoryScreen: React.FC<CampaignHistoryScreenProps> = ({navigation}) => {
+const CampaignHistoryScreen: React.FC<CampaignHistoryScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -278,6 +280,8 @@ const CampaignHistoryScreen: React.FC<CampaignHistoryScreenProps> = ({navigation
         <Header 
           title="Campaign History" 
           onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£6,859.83"
         />
         <View style={styles.loadingContainer}>
@@ -294,6 +298,8 @@ const CampaignHistoryScreen: React.FC<CampaignHistoryScreenProps> = ({navigation
       <Header 
         title="Campaign History" 
         onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£6,859.83"
       />
       

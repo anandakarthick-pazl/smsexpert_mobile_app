@@ -17,9 +17,11 @@ import {toast} from '../context/ToastContext';
 interface ChangePasswordScreenProps {
   navigation: any;
   walletBalance?: string;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({navigation, walletBalance}) => {
+const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({navigation, walletBalance, onNotificationPress, notificationCount = 0}) => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -97,6 +99,8 @@ const ChangePasswordScreen: React.FC<ChangePasswordScreenProps> = ({navigation, 
       <Header 
         title="Change Password" 
         onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance={walletBalance || '£0.00'}
       />
       

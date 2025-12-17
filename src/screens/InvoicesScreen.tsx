@@ -26,9 +26,11 @@ import {
 
 interface Props {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const InvoicesScreen: React.FC<Props> = ({navigation}) => {
+const InvoicesScreen: React.FC<Props> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const onMenuPress = () => navigation.openDrawer();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -136,7 +138,7 @@ const InvoicesScreen: React.FC<Props> = ({navigation}) => {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
-        <Header title="Invoices" onMenuPress={onMenuPress} />
+        <Header title="Invoices" onMenuPress={onMenuPress} onNotificationPress={onNotificationPress} notificationCount={notificationCount} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
           <Text style={styles.loadingText}>Loading...</Text>
@@ -152,7 +154,7 @@ const InvoicesScreen: React.FC<Props> = ({navigation}) => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
-      <Header title="Invoices" onMenuPress={onMenuPress} />
+      <Header title="Invoices" onMenuPress={onMenuPress} onNotificationPress={onNotificationPress} notificationCount={notificationCount} />
 
       <View style={styles.content}>
         <ScrollView

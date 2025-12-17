@@ -24,9 +24,11 @@ interface KeywordsScreenProps {
     openDrawer: () => void;
     goBack: () => void;
   };
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const KeywordsScreen: React.FC<KeywordsScreenProps> = ({navigation}) => {
+const KeywordsScreen: React.FC<KeywordsScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   // State
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,9 +67,7 @@ const KeywordsScreen: React.FC<KeywordsScreenProps> = ({navigation}) => {
     setRefreshing(false);
   }, []);
 
-  const handleNotificationPress = () => {
-    Alert.alert('Notifications', 'You have 3 new notifications');
-  };
+
 
   const handleConfigure = (keyword: Keyword) => {
     // Navigate to the new KeywordConfigScreen
@@ -123,8 +123,8 @@ const KeywordsScreen: React.FC<KeywordsScreenProps> = ({navigation}) => {
         <Header
           title="Keywords"
           onMenuPress={() => navigation.openDrawer()}
-          onNotificationPress={handleNotificationPress}
-          notificationCount={3}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
@@ -141,8 +141,8 @@ const KeywordsScreen: React.FC<KeywordsScreenProps> = ({navigation}) => {
       <Header
         title="Keywords"
         onMenuPress={() => navigation.openDrawer()}
-        onNotificationPress={handleNotificationPress}
-        notificationCount={3}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
       />
 
       <ScrollView

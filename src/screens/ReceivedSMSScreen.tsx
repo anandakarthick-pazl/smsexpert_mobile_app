@@ -29,9 +29,11 @@ interface ReceivedSMSScreenProps {
     openDrawer: () => void;
     goBack: () => void;
   };
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
+const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   // Page Data State
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   
@@ -198,9 +200,7 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
     return `${String(date.day).padStart(2, '0')}/${String(date.month).padStart(2, '0')}/${date.year}`;
   };
 
-  const handleNotificationPress = () => {
-    Alert.alert('Notifications', 'You have new notifications');
-  };
+
 
   const handleScroll = (event: any) => {
     const {layoutMeasurement, contentOffset, contentSize} = event.nativeEvent;
@@ -355,10 +355,10 @@ const ReceivedSMSScreen: React.FC<ReceivedSMSScreenProps> = ({navigation}) => {
       <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
 
       <Header
-      title="Received SMS"
-      onMenuPress={() => navigation.openDrawer()}
-      onNotificationPress={handleNotificationPress}
-      notificationCount={3}
+        title="Received SMS"
+        onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
       />
 
       {isLoading ? (

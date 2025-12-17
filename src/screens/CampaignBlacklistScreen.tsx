@@ -23,9 +23,11 @@ import {
 
 interface CampaignBlacklistScreenProps {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const CampaignBlacklistScreen: React.FC<CampaignBlacklistScreenProps> = ({navigation}) => {
+const CampaignBlacklistScreen: React.FC<CampaignBlacklistScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -97,6 +99,8 @@ const CampaignBlacklistScreen: React.FC<CampaignBlacklistScreenProps> = ({naviga
         <Header 
           title="STOP Blacklist" 
           onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£6,859.83"
         />
         <View style={styles.loadingContainer}>
@@ -113,6 +117,8 @@ const CampaignBlacklistScreen: React.FC<CampaignBlacklistScreenProps> = ({naviga
       <Header 
         title="STOP Blacklist" 
         onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£6,859.83"
       />
       

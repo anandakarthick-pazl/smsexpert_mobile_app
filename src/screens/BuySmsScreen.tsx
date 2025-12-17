@@ -27,9 +27,11 @@ import {
 
 interface Props {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const BuySmsScreen: React.FC<Props> = ({navigation}) => {
+const BuySmsScreen: React.FC<Props> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const onMenuPress = () => navigation.openDrawer();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -137,7 +139,7 @@ const BuySmsScreen: React.FC<Props> = ({navigation}) => {
     return (
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
-        <Header title="Buy SMS" onMenuPress={onMenuPress} />
+        <Header title="Buy SMS" onMenuPress={onMenuPress} onNotificationPress={onNotificationPress} notificationCount={notificationCount} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
           <Text style={styles.loadingText}>Loading...</Text>
@@ -149,7 +151,7 @@ const BuySmsScreen: React.FC<Props> = ({navigation}) => {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
-      <Header title="Buy SMS" onMenuPress={onMenuPress} />
+      <Header title="Buy SMS" onMenuPress={onMenuPress} onNotificationPress={onNotificationPress} notificationCount={notificationCount} />
       
       <ScrollView
         style={styles.content}

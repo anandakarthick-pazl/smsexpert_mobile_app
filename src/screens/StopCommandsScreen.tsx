@@ -22,9 +22,11 @@ import {
 
 interface StopCommandsScreenProps {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const StopCommandsScreen: React.FC<StopCommandsScreenProps> = ({navigation}) => {
+const StopCommandsScreen: React.FC<StopCommandsScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -140,6 +142,8 @@ const StopCommandsScreen: React.FC<StopCommandsScreenProps> = ({navigation}) => 
         <Header 
           title="STOPs/Optouts" 
           onMenuPress={() => navigation.openDrawer()}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           walletBalance="£6,859.83"
         />
         <View style={styles.loadingContainer}>
@@ -156,6 +160,8 @@ const StopCommandsScreen: React.FC<StopCommandsScreenProps> = ({navigation}) => 
       <Header 
         title="STOPs/Optouts" 
         onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£6,859.83"
       />
       

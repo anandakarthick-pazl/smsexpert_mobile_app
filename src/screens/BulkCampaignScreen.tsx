@@ -25,6 +25,8 @@ import {
 
 interface BulkCampaignScreenProps {
   navigation: any;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
 interface SelectedFile {
@@ -45,7 +47,7 @@ const defaultCsvColumns: CSVColumn[] = [
   {column: 8, name: 'Route', description: 'Route letter (d, p, e, etc.)', required: false, example: 'd'},
 ];
 
-const BulkCampaignScreen: React.FC<BulkCampaignScreenProps> = ({navigation}) => {
+const BulkCampaignScreen: React.FC<BulkCampaignScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [campaignName, setCampaignName] = useState('');
@@ -236,6 +238,8 @@ const BulkCampaignScreen: React.FC<BulkCampaignScreenProps> = ({navigation}) => 
       <Header 
         title="Bulk Campaign" 
         onMenuPress={() => navigation.openDrawer()}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         walletBalance="£6,859.83"
       />
       

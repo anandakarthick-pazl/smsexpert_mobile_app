@@ -720,67 +720,67 @@ function AppContentWithNotifications(): React.JSX.Element {
       case 'Dashboard':
         return <DashboardScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'SMSWallet':
-        return <SMSWalletScreen navigation={navigation} />;
+        return <SMSWalletScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'SendSMS':
-        return <SendNewSMSScreen navigation={navigation} />;
+        return <SendNewSMSScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'ReceivedSMS':
-        return <ReceivedSMSScreen navigation={navigation} />;
+        return <ReceivedSMSScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'SentSMS':
-        return <SentSMSScreen navigation={navigation} />;
+        return <SentSMSScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Keywords':
-        return <KeywordsScreen navigation={navigation} />;
+        return <KeywordsScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'KeywordConfig':
-        return <KeywordConfigScreen navigation={navigation} route={routeParams} />;
+        return <KeywordConfigScreen navigation={navigation} route={routeParams} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'SmsResponder':
-        return <SmsResponderScreen navigation={navigation} route={routeParams} />;
+        return <SmsResponderScreen navigation={navigation} route={routeParams} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'EmailForwarder':
-        return <EmailForwarderScreen navigation={navigation} route={routeParams} />;
+        return <EmailForwarderScreen navigation={navigation} route={routeParams} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'SmsForwarder':
-        return <SmsForwarderScreen navigation={navigation} route={routeParams} />;
+        return <SmsForwarderScreen navigation={navigation} route={routeParams} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Subscription':
-        return <SubscriptionScreen navigation={navigation} route={routeParams} />;
+        return <SubscriptionScreen navigation={navigation} route={routeParams} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'WapPushResponder':
-        return <WapPushResponderScreen navigation={navigation} route={routeParams} />;
+        return <WapPushResponderScreen navigation={navigation} route={routeParams} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'BusinessCard':
-        return <BusinessCardScreen navigation={navigation} route={routeParams} />;
+        return <BusinessCardScreen navigation={navigation} route={routeParams} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Voting':
-        return <VotingScreen navigation={navigation} route={routeParams} />;
+        return <VotingScreen navigation={navigation} route={routeParams} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Numbers':
-        return <NumbersScreen navigation={navigation} />;
+        return <NumbersScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Groups':
-        return <GroupsScreen navigation={navigation} />;
+        return <GroupsScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Profile':
-        return <ProfileScreen navigation={navigation} />;
+        return <ProfileScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Contracts':
-        return <ContractsScreen navigation={navigation} />;
+        return <ContractsScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Invoices':
-        return <InvoicesScreen navigation={navigation} />;
+        return <InvoicesScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'InvoiceDetail':
-        return <InvoiceDetailScreen navigation={navigation} route={routeParams} />;
+        return <InvoiceDetailScreen navigation={navigation} route={routeParams} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'BuySms':
-        return <BuySmsScreen navigation={navigation} />;
+        return <BuySmsScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'DeliveryReceipt':
-        return <DeliveryReceiptScreen navigation={navigation} />;
+        return <DeliveryReceiptScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Stops':
-        return <StopCommandsScreen navigation={navigation} />;
+        return <StopCommandsScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Blacklist':
-        return <BlacklistScreen navigation={navigation} />;
+        return <BlacklistScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'ChangePassword':
-        return <ChangePasswordScreen navigation={navigation} />;
+        return <ChangePasswordScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'CampaignHome':
         return <CampaignDashboardScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'CampaignQuick':
-        return <QuickCampaignScreen navigation={navigation} />;
+        return <QuickCampaignScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'CampaignFile':
-        return <BulkCampaignScreen navigation={navigation} />;
+        return <BulkCampaignScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'CampaignHistory':
-        return <CampaignHistoryScreen navigation={navigation} />;
+        return <CampaignHistoryScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'CampaignBlacklist':
-        return <CampaignBlacklistScreen navigation={navigation} />;
+        return <CampaignBlacklistScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'CampaignAccounts':
-        return <CampaignAccountsScreen navigation={navigation} />;
+        return <CampaignAccountsScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'CampaignAddAccount':
-        return <CampaignAddAccountScreen navigation={navigation} />;
+        return <CampaignAddAccountScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Notifications':
         return <NotificationsScreen navigation={navigation} />;
       default:

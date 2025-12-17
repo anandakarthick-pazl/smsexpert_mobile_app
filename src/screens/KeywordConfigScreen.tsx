@@ -40,6 +40,8 @@ interface KeywordConfigScreenProps {
       keywordName?: string;
     };
   };
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
 // Module definitions with icons, colors, and descriptions
@@ -99,7 +101,7 @@ const MODULE_INFO: Record<string, {
   },
 };
 
-const KeywordConfigScreen: React.FC<KeywordConfigScreenProps> = ({navigation, route}) => {
+const KeywordConfigScreen: React.FC<KeywordConfigScreenProps> = ({navigation, route, onNotificationPress, notificationCount = 0}) => {
   const keywordId = route.params?.keywordId;
   const keywordNameParam = route.params?.keywordName || '';
 
@@ -665,8 +667,8 @@ const KeywordConfigScreen: React.FC<KeywordConfigScreenProps> = ({navigation, ro
         <Header
           title="Keyword Configuration"
           onMenuPress={() => navigation.openDrawer()}
-          onNotificationPress={() => {}}
-          notificationCount={0}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           showBack
           onBackPress={() => navigation.goBack()}
         />
@@ -685,8 +687,8 @@ const KeywordConfigScreen: React.FC<KeywordConfigScreenProps> = ({navigation, ro
         <Header
           title="Keyword Configuration"
           onMenuPress={() => navigation.openDrawer()}
-          onNotificationPress={() => {}}
-          notificationCount={0}
+          onNotificationPress={onNotificationPress}
+          notificationCount={notificationCount}
           showBack
           onBackPress={() => navigation.goBack()}
         />
@@ -708,8 +710,8 @@ const KeywordConfigScreen: React.FC<KeywordConfigScreenProps> = ({navigation, ro
       <Header
         title="Keyword Configuration"
         onMenuPress={() => navigation.openDrawer()}
-        onNotificationPress={() => {}}
-        notificationCount={0}
+        onNotificationPress={onNotificationPress}
+        notificationCount={notificationCount}
         showBack
         onBackPress={() => navigation.goBack()}
       />
