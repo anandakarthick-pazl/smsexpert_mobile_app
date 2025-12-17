@@ -311,17 +311,45 @@ function AppContentWithNotifications(): React.JSX.Element {
   const handleNotificationAction = (message: any) => {
     const data = message.data;
     
+    console.log('Handling notification action:', data);
+    
     if (data?.screen) {
       // Navigate to specific screen based on notification data
       console.log('Navigating to screen from notification:', data.screen);
       setCurrentScreen(data.screen as ScreenName);
+      
+      // If it's the Notifications screen and we have a notification_id, we could scroll to it
+      if (data.screen === 'Notifications' && data.notification_id) {
+        // Store the notification ID to scroll to (could use a ref or state)
+        console.log('Should scroll to notification:', data.notification_id);
+      }
     } else if (data?.action) {
       // Handle custom actions
       console.log('Handling notification action:', data.action);
-      if (data.action === 'top_up_wallet') {
-        setCurrentScreen('BuySms');
+      
+      switch (data.action) {
+        case 'top_up_wallet':
+          setCurrentScreen('BuySms');
+          break;
+        case 'view_notification':
+          // Navigate to notifications screen to view the notification
+          setCurrentScreen('Notifications');
+          break;
+        default:
+          // Default: navigate to notifications screen
+          setCurrentScreen('Notifications');
+          break;
       }
+    } else {
+      // No specific screen or action, go to notifications
+      setCurrentScreen('Notifications');
     }
+    
+    // Refresh notifications after handling
+    setTimeout(() => {
+      refreshNotifications();
+      refreshUnreadCount();
+    }, 500);
   };
 
   /**

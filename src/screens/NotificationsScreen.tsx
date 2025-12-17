@@ -65,10 +65,14 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation}) =
     }
 
     // Handle navigation based on notification data
-    if (notification.data?.screen) {
+    if (notification.data?.screen && notification.data.screen !== 'Notifications') {
       navigation.navigate(notification.data.screen, notification.data);
     } else if (notification.data?.action === 'top_up_wallet') {
       navigation.navigate('BuySms');
+    } else if (notification.data?.action === 'view_notification') {
+      // For admin notifications, just show details in current screen (already viewing)
+      // Could implement a detail modal here if needed
+      console.log('Viewing notification:', notification.id);
     }
   }, [markAsRead, navigation]);
 
