@@ -796,6 +796,7 @@ function AppContentWithNotifications(): React.JSX.Element {
           companyName={userInfo.companyName}
           isCampaignMode={isCampaignMode}
           onModeChange={handleModeChange}
+          dashboardAccess={userData?.dashboard_access || 'mca'}
         />
       )}
     </WalletContext.Provider>

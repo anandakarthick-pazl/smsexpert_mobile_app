@@ -10,6 +10,7 @@ import {
   Pressable,
   Alert,
   TouchableWithoutFeedback,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -47,15 +48,59 @@ const dashboardMenuItems: MenuItem[] = [
   {name: 'Blacklist', icon: '🚫', route: 'Blacklist'},
 ];
 
-// Campaign Manager Menu Items
-const campaignMenuItems: MenuItem[] = [
-  {name: 'Campaign Dashboard', icon: '🏠', route: 'CampaignHome'},
-  {name: 'Quick Campaign', icon: '📤', route: 'CampaignQuick'},
-  {name: 'Bulk Campaign', icon: '📁', route: 'CampaignFile'},
-  {name: 'Campaigns History', icon: '📋', route: 'CampaignHistory'},
-  {name: 'STOP Blacklist', icon: '🚫', route: 'CampaignBlacklist'},
-  {name: 'View Accounts', icon: '👥', route: 'CampaignAccounts'},
-  {name: 'New Sub-Account', icon: '➕', route: 'CampaignAddAccount'},
+// Campaign Manager Menu Items with access control
+// Access codes: m = main dashboard, c = campaign, a = accounts
+// Combined: mc, ca, mca
+interface CampaignMenuItem {
+  name: string;
+  icon: string;
+  route: string;
+  allowedAccess: string[]; // Which dashboard_access values can see this menu
+}
+
+const campaignMenuItemsWithAccess: CampaignMenuItem[] = [
+  {
+    name: 'Campaign Dashboard',
+    icon: '🏠',
+    route: 'CampaignHome',
+    allowedAccess: ['m', 'c', 'a', 'mc', 'ca', 'mca'],
+  },
+  {
+    name: 'Quick Campaign',
+    icon: '📤',
+    route: 'CampaignQuick',
+    allowedAccess: ['c', 'mc', 'ca', 'mca'],
+  },
+  {
+    name: 'Bulk Campaign',
+    icon: '📁',
+    route: 'CampaignFile',
+    allowedAccess: ['c', 'mc', 'ca', 'mca'],
+  },
+  {
+    name: 'Campaigns History',
+    icon: '📋',
+    route: 'CampaignHistory',
+    allowedAccess: ['c', 'mc', 'ca', 'mca'],
+  },
+  {
+    name: 'STOP Blacklist',
+    icon: '🚫',
+    route: 'CampaignBlacklist',
+    allowedAccess: ['c', 'mc', 'ca', 'mca'],
+  },
+  {
+    name: 'View Accounts',
+    icon: '👥',
+    route: 'CampaignAccounts',
+    allowedAccess: ['c', 'a', 'mc', 'ca', 'mca'],
+  },
+  {
+    name: 'New Sub-Account',
+    icon: '➕',
+    route: 'CampaignAddAccount',
+    allowedAccess: ['a', 'ca', 'mca'],
+  },
 ];
 
 interface SidebarModalProps {
@@ -69,6 +114,7 @@ interface SidebarModalProps {
   companyName?: string;
   isCampaignMode: boolean;
   onModeChange: (isCampaign: boolean) => void;
+  dashboardAccess?: string; // m, c, a, mc, ca, mca - for campaign menu filtering
 }
 
 const SidebarModal: React.FC<SidebarModalProps> = ({
@@ -82,6 +128,7 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   companyName = 'Dashboard User',
   isCampaignMode,
   onModeChange,
+  dashboardAccess = 'mca', // Default to full access
 }) => {
   const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -90,8 +137,15 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   // Get wallet balance from context
   const {walletBalance} = useContext(WalletContext);
 
+  // Filter campaign menu items based on dashboard access
+  const filteredCampaignMenuItems = campaignMenuItemsWithAccess.filter(item =>
+    item.allowedAccess.includes(dashboardAccess.toLowerCase())
+  );
+
   // Get current menu items based on mode
-  const menuItems = isCampaignMode ? campaignMenuItems : dashboardMenuItems;
+  const menuItems: MenuItem[] = isCampaignMode
+    ? filteredCampaignMenuItems.map(({name, icon, route}) => ({name, icon, route}))
+    : dashboardMenuItems;
   
   // Get user type based on mode
   const userType = isCampaignMode ? 'Campaign User' : 'Dashboard User';
@@ -641,7 +695,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: 12,
-    paddingBottom: 24,
+    paddingBottom: Platform.OS === 'android' ? 50 : 40,
     borderTopWidth: 1,
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },

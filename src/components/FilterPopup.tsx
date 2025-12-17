@@ -736,7 +736,7 @@ const bottomSheetStyles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    paddingBottom: 30,
+    paddingBottom: 50,
     gap: 12,
     borderTopWidth: 1,
     borderTopColor: '#e2e8f0',
@@ -869,6 +869,7 @@ const datePickerStyles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     marginTop: 20,
+    marginBottom: 10,
     gap: 12,
   },
   cancelBtn: {

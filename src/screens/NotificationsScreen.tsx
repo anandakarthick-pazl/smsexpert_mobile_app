@@ -13,6 +13,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  StatusBar,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
@@ -202,68 +203,75 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation}) =
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <Header
-        title="Notifications"
-        onMenuPress={() => navigation.openDrawer()}
-        showBack
-        onBackPress={() => navigation.goBack()}
-      />
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#293B50" />
+      <View style={styles.container}>
+        <Header
+          title="Notifications"
+          onMenuPress={() => navigation.openDrawer()}
+          showBack
+          onBackPress={() => navigation.goBack()}
+        />
 
-      {/* Filter Tabs */}
-      <View style={styles.filterContainer}>
-        <TouchableOpacity
-          style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
-          onPress={() => setFilter('all')}
-        >
-          <Text style={[styles.filterTabText, filter === 'all' && styles.filterTabTextActive]}>
-            All
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={[styles.filterTab, filter === 'unread' && styles.filterTabActive]}
-          onPress={() => setFilter('unread')}
-        >
-          <Text style={[styles.filterTabText, filter === 'unread' && styles.filterTabTextActive]}>
-            Unread {unreadCount > 0 && `(${unreadCount})`}
-          </Text>
-        </TouchableOpacity>
-
-        {unreadCount > 0 && (
+        {/* Filter Tabs */}
+        <View style={styles.filterContainer}>
           <TouchableOpacity
-            style={styles.markAllButton}
-            onPress={handleMarkAllAsRead}
+            style={[styles.filterTab, filter === 'all' && styles.filterTabActive]}
+            onPress={() => setFilter('all')}
           >
-            <Text style={styles.markAllButtonText}>Mark All Read</Text>
+            <Text style={[styles.filterTabText, filter === 'all' && styles.filterTabTextActive]}>
+              All
+            </Text>
           </TouchableOpacity>
-        )}
-      </View>
+          
+          <TouchableOpacity
+            style={[styles.filterTab, filter === 'unread' && styles.filterTabActive]}
+            onPress={() => setFilter('unread')}
+          >
+            <Text style={[styles.filterTabText, filter === 'unread' && styles.filterTabTextActive]}>
+              Unread {unreadCount > 0 && `(${unreadCount})`}
+            </Text>
+          </TouchableOpacity>
 
-      <FlatList
-        data={filteredNotifications}
-        renderItem={renderNotificationItem}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={['#ea6118']}
-            tintColor="#ea6118"
-          />
-        }
-        onEndReached={handleLoadMore}
-        onEndReachedThreshold={0.3}
-        ListEmptyComponent={renderEmptyState}
-        ListFooterComponent={renderFooter}
-        showsVerticalScrollIndicator={false}
-      />
+          {unreadCount > 0 && (
+            <TouchableOpacity
+              style={styles.markAllButton}
+              onPress={handleMarkAllAsRead}
+            >
+              <Text style={styles.markAllButtonText}>Mark All Read</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <FlatList
+          data={filteredNotifications}
+          renderItem={renderNotificationItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={['#ea6118']}
+              tintColor="#ea6118"
+            />
+          }
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.3}
+          ListEmptyComponent={renderEmptyState}
+          ListFooterComponent={renderFooter}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#293B50',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',

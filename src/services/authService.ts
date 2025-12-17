@@ -38,6 +38,7 @@ export interface User {
   login_type: string;
   wallet_balance: number;
   smsg_wallet: number;
+  dashboard_access: string; // m, c, a, mc, ca, mca
   created_at: string | null;
 }
 
