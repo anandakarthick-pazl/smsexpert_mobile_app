@@ -308,17 +308,31 @@ export const setBackgroundMessageHandler = (
 
 /**
  * Show local notification for foreground messages
+ * Returns true if user tapped "View", false if dismissed
  */
-export const showLocalNotification = (title: string, body: string, data?: any): void => {
+export const showLocalNotification = (
+  title: string, 
+  body: string, 
+  data?: any,
+  onView?: () => void
+): void => {
   Alert.alert(
     title || 'New Notification',
     body || '',
     [
       {
-        text: 'OK',
+        text: 'Dismiss',
+        style: 'cancel',
         onPress: () => {
-          if (data?.action) {
-            console.log('Notification action:', data.action);
+          console.log('Notification dismissed');
+        },
+      },
+      {
+        text: 'View',
+        onPress: () => {
+          console.log('View notification pressed:', data);
+          if (onView) {
+            onView();
           }
         },
       },

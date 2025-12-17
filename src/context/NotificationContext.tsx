@@ -5,7 +5,7 @@
 
 import React, {createContext, useContext, useState, useCallback, useEffect, useRef} from 'react';
 import * as notificationApiService from '../services/notificationApiService';
-import {Notification, UnreadCountResponse} from '../services/notificationApiService';
+import {Notification, UnreadCountResponse, getNotificationById} from '../services/notificationApiService';
 
 interface NotificationContextType {
   notifications: Notification[];
@@ -23,6 +23,8 @@ interface NotificationContextType {
   acknowledgeNotification: (notificationId: string) => Promise<void>;
   deleteNotification: (notificationId: string) => Promise<void>;
   refreshUnreadCount: () => Promise<void>;
+  getNotification: (notificationId: string) => Promise<Notification | null>;
+  findNotificationById: (notificationId: string) => Notification | undefined;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -225,6 +227,43 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({child
     await fetchUnreadCount();
   }, [fetchUnreadCount]);
 
+  /**
+   * Get a specific notification by ID from API
+   */
+  const getNotification = useCallback(async (notificationId: string): Promise<Notification | null> => {
+    try {
+      // First check if notification is already in local state
+      const localNotification = notifications.find(
+        n => n.id === notificationId || n.notification_id?.toString() === notificationId
+      );
+      
+      if (localNotification) {
+        return localNotification;
+      }
+
+      // Fetch from API
+      const result = await getNotificationById(notificationId);
+      
+      if (result.success && result.data) {
+        return result.data;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error getting notification:', error);
+      return null;
+    }
+  }, [notifications]);
+
+  /**
+   * Find a notification in local state by ID
+   */
+  const findNotificationById = useCallback((notificationId: string): Notification | undefined => {
+    return notifications.find(
+      n => n.id === notificationId || n.notification_id?.toString() === notificationId
+    );
+  }, [notifications]);
+
   // Start polling for unread count when provider mounts
   useEffect(() => {
     // Initial fetch
@@ -261,6 +300,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({child
     acknowledgeNotification,
     deleteNotification,
     refreshUnreadCount,
+    getNotification,
+    findNotificationById,
   };
 
   return (

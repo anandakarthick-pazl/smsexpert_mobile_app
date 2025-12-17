@@ -1,9 +1,9 @@
 /**
  * Notifications Screen
- * Display list of all notifications
+ * Display list of all notifications with detail view
  */
 
-import React, {useEffect, useCallback, useState} from 'react';
+import React, {useEffect, useCallback, useState, useRef} from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,10 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
+  Modal,
+  ScrollView,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
@@ -22,9 +26,17 @@ import {Notification} from '../services/notificationApiService';
 
 interface NotificationsScreenProps {
   navigation: any;
+  route?: {
+    params?: {
+      notification_id?: string;
+      highlightId?: string;
+    };
+  };
 }
 
-const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation}) => {
+const {width: SCREEN_WIDTH} = Dimensions.get('window');
+
+const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation, route}) => {
   const {
     notifications,
     unreadCount,
@@ -40,11 +52,86 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation}) =
 
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  
+  const flatListRef = useRef<FlatList>(null);
+  const highlightAnimation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Refresh notifications when screen mounts
     refreshNotifications();
   }, []);
+
+  // Handle notification_id from navigation params (when clicking push notification)
+  useEffect(() => {
+    if (route?.params?.notification_id) {
+      const notificationId = route.params.notification_id;
+      console.log('Opening notification from params:', notificationId);
+      
+      // Set highlighted ID for visual feedback
+      setHighlightedId(notificationId);
+      
+      // Start highlight animation
+      Animated.sequence([
+        Animated.timing(highlightAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+        Animated.delay(2000),
+        Animated.timing(highlightAnimation, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: false,
+        }),
+      ]).start(() => {
+        setHighlightedId(null);
+      });
+      
+      // Find and open the notification after data is loaded
+      setTimeout(() => {
+        const notification = notifications.find(
+          n => n.id === notificationId || n.notification_id?.toString() === notificationId
+        );
+        if (notification) {
+          handleNotificationPress(notification);
+          // Scroll to notification
+          const index = notifications.findIndex(
+            n => n.id === notificationId || n.notification_id?.toString() === notificationId
+          );
+          if (index !== -1 && flatListRef.current) {
+            flatListRef.current.scrollToIndex({index, animated: true, viewPosition: 0.5});
+          }
+        }
+      }, 500);
+    }
+  }, [route?.params?.notification_id, notifications]);
+
+  // Handle highlightId from navigation params
+  useEffect(() => {
+    if (route?.params?.highlightId) {
+      setHighlightedId(route.params.highlightId);
+      
+      // Animate highlight
+      Animated.sequence([
+        Animated.timing(highlightAnimation, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+        Animated.delay(2000),
+        Animated.timing(highlightAnimation, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: false,
+        }),
+      ]).start(() => {
+        setHighlightedId(null);
+      });
+    }
+  }, [route?.params?.highlightId]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -64,23 +151,42 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation}) =
       await markAsRead(notification.id);
     }
 
+    // Show detail modal
+    setSelectedNotification(notification);
+    setDetailModalVisible(true);
+  }, [markAsRead]);
+
+  const handleDetailClose = useCallback(() => {
+    setDetailModalVisible(false);
+    setSelectedNotification(null);
+  }, []);
+
+  const handleDetailAction = useCallback((notification: Notification) => {
+    // Close modal first
+    setDetailModalVisible(false);
+    setSelectedNotification(null);
+
     // Handle navigation based on notification data
     if (notification.data?.screen && notification.data.screen !== 'Notifications') {
       navigation.navigate(notification.data.screen, notification.data);
     } else if (notification.data?.action === 'top_up_wallet') {
       navigation.navigate('BuySms');
-    } else if (notification.data?.action === 'view_notification') {
-      // For admin notifications, just show details in current screen (already viewing)
-      // Could implement a detail modal here if needed
-      console.log('Viewing notification:', notification.id);
     }
-  }, [markAsRead, navigation]);
+  }, [navigation]);
 
   const handleAcknowledge = useCallback(async (notification: Notification) => {
     if (notification.requires_acknowledgement && !notification.is_acknowledged) {
       await acknowledgeNotification(notification.id);
+      // Update selected notification if in detail view
+      if (selectedNotification?.id === notification.id) {
+        setSelectedNotification({
+          ...notification,
+          is_acknowledged: true,
+          acknowledged_at: new Date().toISOString(),
+        });
+      }
     }
-  }, [acknowledgeNotification]);
+  }, [acknowledgeNotification, selectedNotification]);
 
   const handleDelete = useCallback((notification: Notification) => {
     Alert.alert(
@@ -91,11 +197,18 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation}) =
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => deleteNotification(notification.id),
+          onPress: async () => {
+            await deleteNotification(notification.id);
+            // Close detail modal if deleting the selected notification
+            if (selectedNotification?.id === notification.id) {
+              setDetailModalVisible(false);
+              setSelectedNotification(null);
+            }
+          },
         },
       ]
     );
-  }, [deleteNotification]);
+  }, [deleteNotification, selectedNotification]);
 
   const handleMarkAllAsRead = useCallback(() => {
     if (unreadCount > 0) {
@@ -126,63 +239,99 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation}) =
       general: '🔔',
       campaign: '📤',
       delivery: '✅',
+      success: '✅',
+      danger: '🔴',
+      announcement: '📢',
     };
     return icons[type] || '🔔';
+  };
+
+  const getTypeColor = (type: string): string => {
+    const colors: Record<string, string> = {
+      wallet_low: '#ffc107',
+      wallet_insufficient: '#dc3545',
+      throughput_limit: '#fd7e14',
+      system: '#6c757d',
+      info: '#0d6efd',
+      warning: '#ffc107',
+      urgent: '#dc3545',
+      promo: '#6f42c1',
+      general: '#293B50',
+      campaign: '#20c997',
+      delivery: '#198754',
+      success: '#198754',
+      danger: '#dc3545',
+      announcement: '#0dcaf0',
+    };
+    return colors[type] || '#293B50';
   };
 
   const filteredNotifications = filter === 'unread' 
     ? notifications.filter(n => !n.is_read)
     : notifications;
 
-  const renderNotificationItem = ({item}: {item: Notification}) => (
-    <TouchableOpacity
-      style={[
-        styles.notificationItem,
-        !item.is_read && styles.notificationItemUnread,
-      ]}
-      onPress={() => handleNotificationPress(item)}
-      onLongPress={() => handleDelete(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.notificationIcon}>
-        <Text style={styles.notificationIconText}>{getIconForType(item.type)}</Text>
-      </View>
-      
-      <View style={styles.notificationContent}>
-        <View style={styles.notificationHeader}>
-          <Text style={[styles.notificationTitle, !item.is_read && styles.notificationTitleUnread]}>
-            {item.title}
-          </Text>
-          {!item.is_read && <View style={styles.unreadDot} />}
-        </View>
-        
-        <Text style={styles.notificationMessage} numberOfLines={2}>
-          {item.message}
-        </Text>
-        
-        <View style={styles.notificationFooter}>
-          <Text style={styles.notificationTime}>{item.time_ago}</Text>
+  const renderNotificationItem = ({item, index}: {item: Notification; index: number}) => {
+    const isHighlighted = highlightedId === item.id || highlightedId === item.notification_id?.toString();
+    
+    const backgroundColor = isHighlighted 
+      ? highlightAnimation.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['#ffffff', '#fff3cd'],
+        })
+      : item.is_read ? '#ffffff' : '#fff8f5';
+
+    return (
+      <Animated.View style={{backgroundColor}}>
+        <TouchableOpacity
+          style={[
+            styles.notificationItem,
+            !item.is_read && styles.notificationItemUnread,
+          ]}
+          onPress={() => handleNotificationPress(item)}
+          onLongPress={() => handleDelete(item)}
+          activeOpacity={0.7}
+        >
+          <View style={[styles.notificationIcon, {backgroundColor: `${getTypeColor(item.type)}15`}]}>
+            <Text style={styles.notificationIconText}>{getIconForType(item.type)}</Text>
+          </View>
           
-          <View style={styles.notificationBadges}>
-            <View style={[styles.sourceBadge, item.source === 'push' ? styles.pushBadge : styles.adminBadge]}>
-              <Text style={styles.sourceBadgeText}>
-                {item.source === 'push' ? 'Push' : 'Admin'}
+          <View style={styles.notificationContent}>
+            <View style={styles.notificationHeader}>
+              <Text style={[styles.notificationTitle, !item.is_read && styles.notificationTitleUnread]} numberOfLines={1}>
+                {item.title}
               </Text>
+              {!item.is_read && <View style={styles.unreadDot} />}
             </View>
             
-            {item.requires_acknowledgement && !item.is_acknowledged && (
-              <TouchableOpacity
-                style={styles.acknowledgeButton}
-                onPress={() => handleAcknowledge(item)}
-              >
-                <Text style={styles.acknowledgeButtonText}>Acknowledge</Text>
-              </TouchableOpacity>
-            )}
+            <Text style={styles.notificationMessage} numberOfLines={2}>
+              {item.message_preview || item.message}
+            </Text>
+            
+            <View style={styles.notificationFooter}>
+              <Text style={styles.notificationTime}>{item.time_ago}</Text>
+              
+              <View style={styles.notificationBadges}>
+                <View style={[styles.sourceBadge, item.source === 'push' ? styles.pushBadge : styles.adminBadge]}>
+                  <Text style={styles.sourceBadgeText}>
+                    {item.source === 'push' ? 'Push' : 'Admin'}
+                  </Text>
+                </View>
+                
+                {item.requires_acknowledgement && !item.is_acknowledged && (
+                  <TouchableOpacity
+                    style={styles.acknowledgeButton}
+                    onPress={() => handleAcknowledge(item)}
+                  >
+                    <Text style={styles.acknowledgeButtonText}>Acknowledge</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
           </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -203,6 +352,109 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation}) =
       <View style={styles.footerLoader}>
         <ActivityIndicator size="small" color="#ea6118" />
       </View>
+    );
+  };
+
+  // Notification Detail Modal
+  const renderDetailModal = () => {
+    if (!selectedNotification) return null;
+
+    return (
+      <Modal
+        visible={detailModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={handleDetailClose}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderLeft}>
+                <View style={[styles.modalTypeIcon, {backgroundColor: `${getTypeColor(selectedNotification.type)}20`}]}>
+                  <Text style={styles.modalTypeIconText}>{getIconForType(selectedNotification.type)}</Text>
+                </View>
+                <Text style={styles.modalTitle} numberOfLines={2}>{selectedNotification.title}</Text>
+              </View>
+              <TouchableOpacity style={styles.modalCloseButton} onPress={handleDetailClose}>
+                <Text style={styles.modalCloseButtonText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.modalMeta}>
+                <View style={[styles.sourceBadge, selectedNotification.source === 'push' ? styles.pushBadge : styles.adminBadge]}>
+                  <Text style={styles.sourceBadgeText}>
+                    {selectedNotification.source === 'push' ? 'Push Notification' : 'Admin Notification'}
+                  </Text>
+                </View>
+                <Text style={styles.modalTime}>{selectedNotification.time_ago}</Text>
+              </View>
+
+              <Text style={styles.modalMessage}>{selectedNotification.message}</Text>
+
+              {selectedNotification.requires_acknowledgement && (
+                <View style={styles.acknowledgementSection}>
+                  {selectedNotification.is_acknowledged ? (
+                    <View style={styles.acknowledgedBadge}>
+                      <Text style={styles.acknowledgedBadgeText}>✓ Acknowledged</Text>
+                      {selectedNotification.acknowledged_at && (
+                        <Text style={styles.acknowledgedTime}>
+                          {new Date(selectedNotification.acknowledged_at).toLocaleString()}
+                        </Text>
+                      )}
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.acknowledgeButtonLarge}
+                      onPress={() => handleAcknowledge(selectedNotification)}
+                    >
+                      <Text style={styles.acknowledgeButtonLargeText}>Acknowledge</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {selectedNotification.data?.screen && selectedNotification.data.screen !== 'Notifications' && (
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => handleDetailAction(selectedNotification)}
+                >
+                  <Text style={styles.actionButtonText}>
+                    {selectedNotification.data?.action === 'top_up_wallet' ? 'Top Up Wallet' : 'View Details'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {selectedNotification.data?.action === 'top_up_wallet' && !selectedNotification.data?.screen && (
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={() => {
+                    handleDetailClose();
+                    navigation.navigate('BuySms');
+                  }}
+                >
+                  <Text style={styles.actionButtonText}>Top Up Wallet</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDelete(selectedNotification)}
+              >
+                <Text style={styles.deleteButtonText}>🗑️ Delete</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={handleDetailClose}
+              >
+                <Text style={styles.closeButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     );
   };
 
@@ -248,6 +500,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation}) =
         </View>
 
         <FlatList
+          ref={flatListRef}
           data={filteredNotifications}
           renderItem={renderNotificationItem}
           keyExtractor={item => item.id}
@@ -265,7 +518,20 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation}) =
           ListEmptyComponent={renderEmptyState}
           ListFooterComponent={renderFooter}
           showsVerticalScrollIndicator={false}
+          onScrollToIndexFailed={(info) => {
+            // Handle scroll to index failure
+            setTimeout(() => {
+              if (flatListRef.current && filteredNotifications.length > 0) {
+                flatListRef.current.scrollToOffset({
+                  offset: info.averageItemLength * info.index,
+                  animated: true,
+                });
+              }
+            }, 100);
+          }}
         />
+
+        {renderDetailModal()}
       </View>
     </SafeAreaView>
   );
@@ -322,7 +588,7 @@ const styles = StyleSheet.create({
   },
   notificationItem: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: 'transparent',
     marginHorizontal: 16,
     marginVertical: 4,
     borderRadius: 12,
@@ -334,7 +600,6 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   notificationItemUnread: {
-    backgroundColor: '#fff8f5',
     borderLeftWidth: 3,
     borderLeftColor: '#ea6118',
   },
@@ -342,7 +607,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#f8f9fa',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -448,6 +712,162 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: 16,
     alignItems: 'center',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: -4},
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
+  },
+  modalTypeIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  modalTypeIconText: {
+    fontSize: 24,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#293B50',
+    flex: 1,
+  },
+  modalCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
+    fontSize: 16,
+    color: '#6c757d',
+    fontWeight: '600',
+  },
+  modalContent: {
+    padding: 20,
+  },
+  modalMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTime: {
+    fontSize: 13,
+    color: '#adb5bd',
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: '#495057',
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  acknowledgementSection: {
+    marginBottom: 20,
+  },
+  acknowledgedBadge: {
+    backgroundColor: '#d4edda',
+    padding: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  acknowledgedBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#155724',
+  },
+  acknowledgedTime: {
+    fontSize: 12,
+    color: '#155724',
+    marginTop: 4,
+  },
+  acknowledgeButtonLarge: {
+    backgroundColor: '#dc3545',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  acknowledgeButtonLargeText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  actionButton: {
+    backgroundColor: '#ea6118',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  actionButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 20,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
+    gap: 12,
+  },
+  deleteButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#f8f9fa',
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#dc3545',
+  },
+  closeButton: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#293B50',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#ffffff',
   },
 });
 

@@ -257,7 +257,11 @@ function AppContentWithNotifications(): React.JSX.Element {
       const title = message.notification?.title || 'New Message';
       const body = message.notification?.body || '';
       
-      notificationService.showLocalNotification(title, body, message.data);
+      // Show local notification with View button
+      notificationService.showLocalNotification(title, body, message.data, () => {
+        // User tapped "View" - handle the notification action
+        handleNotificationAction(message);
+      });
       
       // Refresh unread count
       refreshUnreadCount();
@@ -309,20 +313,29 @@ function AppContentWithNotifications(): React.JSX.Element {
    * Handle notification action/navigation
    */
   const handleNotificationAction = (message: any) => {
-    const data = message.data;
+    const data = message.data || {};
+    const notificationPayload = message.notification || {};
     
-    console.log('Handling notification action:', data);
+    console.log('Handling notification action:', {data, notificationPayload});
+    
+    // Extract notification_id from data
+    const notificationId = data?.notification_id || data?.recipient_id;
     
     if (data?.screen) {
       // Navigate to specific screen based on notification data
       console.log('Navigating to screen from notification:', data.screen);
-      setCurrentScreen(data.screen as ScreenName);
       
-      // If it's the Notifications screen and we have a notification_id, we could scroll to it
-      if (data.screen === 'Notifications' && data.notification_id) {
-        // Store the notification ID to scroll to (could use a ref or state)
-        console.log('Should scroll to notification:', data.notification_id);
-      }
+      // Set route params with notification data
+      setRouteParams({
+        params: {
+          ...data,
+          notification_id: notificationId,
+          highlightId: notificationId,
+          fromPush: true,
+        },
+      });
+      
+      setCurrentScreen(data.screen as ScreenName);
     } else if (data?.action) {
       // Handle custom actions
       console.log('Handling notification action:', data.action);
@@ -332,16 +345,37 @@ function AppContentWithNotifications(): React.JSX.Element {
           setCurrentScreen('BuySms');
           break;
         case 'view_notification':
-          // Navigate to notifications screen to view the notification
+          // Navigate to notifications screen with the notification_id
+          setRouteParams({
+            params: {
+              notification_id: notificationId,
+              highlightId: notificationId,
+              fromPush: true,
+            },
+          });
           setCurrentScreen('Notifications');
           break;
         default:
-          // Default: navigate to notifications screen
+          // Default: navigate to notifications screen with notification_id
+          setRouteParams({
+            params: {
+              notification_id: notificationId,
+              highlightId: notificationId,
+              fromPush: true,
+            },
+          });
           setCurrentScreen('Notifications');
           break;
       }
     } else {
-      // No specific screen or action, go to notifications
+      // No specific screen or action, go to notifications with notification_id if available
+      setRouteParams({
+        params: {
+          notification_id: notificationId,
+          highlightId: notificationId,
+          fromPush: true,
+        },
+      });
       setCurrentScreen('Notifications');
     }
     
@@ -810,7 +844,7 @@ function AppContentWithNotifications(): React.JSX.Element {
       case 'CampaignAddAccount':
         return <CampaignAddAccountScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Notifications':
-        return <NotificationsScreen navigation={navigation} />;
+        return <NotificationsScreen navigation={navigation} route={routeParams} />;
       default:
         return (
           <PlaceholderScreen

@@ -320,6 +320,35 @@ export const checkMaintenanceMode = async (): Promise<{success: boolean; data?: 
   }
 };
 
+/**
+ * Get single notification by ID
+ */
+export const getNotificationById = async (
+  notificationId: string
+): Promise<{success: boolean; data?: Notification; message?: string}> => {
+  try {
+    const response = await get<Notification>(`notifications/${notificationId}`, true, false);
+
+    if (response.status && response.data) {
+      return {
+        success: true,
+        data: response.data,
+      };
+    }
+
+    return {
+      success: false,
+      message: response.message || 'Failed to fetch notification',
+    };
+  } catch (error: any) {
+    console.error('Error fetching notification:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to fetch notification',
+    };
+  }
+};
+
 export default {
   getNotifications,
   getUnreadCount,
@@ -330,4 +359,5 @@ export default {
   registerFcmToken,
   unregisterFcmToken,
   checkMaintenanceMode,
+  getNotificationById,
 };
