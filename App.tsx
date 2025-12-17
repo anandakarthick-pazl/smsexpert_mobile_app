@@ -3,7 +3,7 @@
  */
 
 import React, {useState, useEffect, useCallback, useRef} from 'react';
-import {StatusBar, View, ActivityIndicator, StyleSheet, Text} from 'react-native';
+import {StatusBar, View, ActivityIndicator, StyleSheet, Text, InteractionManager, AppState} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -41,16 +41,22 @@ import WapPushResponderScreen from './src/screens/WapPushResponderScreen';
 import BusinessCardScreen from './src/screens/BusinessCardScreen';
 import VotingScreen from './src/screens/VotingScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
+import MaintenanceScreen from './src/screens/MaintenanceScreen';
 import SidebarModal from './src/components/SidebarModal';
 
 // Import Toast Provider
 import {ToastProvider, useToast, setGlobalToast} from './src/context/ToastContext';
+
+// Import Notification Provider
+import {NotificationProvider, useNotifications} from './src/context/NotificationContext';
 
 // Import services
 import * as authService from './src/services/authService';
 import {User} from './src/services/authService';
 import {getWalletBalance, formatWalletBalance} from './src/services/walletService';
 import * as notificationService from './src/services/notificationService';
+import * as notificationApiService from './src/services/notificationApiService';
 
 // Storage key for app mode
 const APP_MODE_KEY = '@sms_expert_app_mode';
@@ -89,7 +95,9 @@ type ScreenName =
   | 'CampaignHistory'
   | 'CampaignBlacklist'
   | 'CampaignAccounts'
-  | 'CampaignAddAccount';
+  | 'CampaignAddAccount'
+  | 'Notifications'
+  | 'Maintenance';
 
 // Create a global wallet balance context to share across components (used by SidebarModal)
 export const WalletContext = React.createContext<{
@@ -100,45 +108,98 @@ export const WalletContext = React.createContext<{
   refreshWallet: async () => {},
 });
 
-// Main App Content Component
-function AppContent(): React.JSX.Element {
+// Main App Content Component (with notification context access)
+function AppContentWithNotifications(): React.JSX.Element {
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Login');
   const [routeParams, setRouteParams] = useState<{params?: any}>({params: {}});
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [isAppReady, setIsAppReady] = useState(false);
   const [userData, setUserData] = useState<User | null>(null);
   const [walletBalance, setWalletBalance] = useState<string>('£0.00');
   const [isCampaignMode, setIsCampaignMode] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState<{
+    enabled: boolean;
+    message: string;
+    endTime: string | null;
+  }>({enabled: false, message: '', endTime: null});
   
   // Get toast functions
   const {showToast, showSuccess} = useToast();
   
+  // Get notification context
+  const {unreadCount, refreshUnreadCount, refreshNotifications} = useNotifications();
+  
   // Store unsubscribe functions for FCM listeners
   const fcmUnsubscribeRef = useRef<(() => void)[]>([]);
+  
+  // Track if FCM token has been registered
+  const fcmTokenRegistered = useRef(false);
+
+  // Debug: Log sidebarVisible state changes
+  useEffect(() => {
+    console.log('App: sidebarVisible changed to:', sidebarVisible);
+  }, [sidebarVisible]);
 
   // Setup global toast for use in services
   useEffect(() => {
     setGlobalToast(showToast);
   }, [showToast]);
 
+  // Mark app as ready after initial render (Activity will be attached)
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      console.log('App is ready, Activity should be attached');
+      setIsAppReady(true);
+    });
+
+    return () => task.cancel();
+  }, []);
+
   // Check authentication status on app start
   useEffect(() => {
     checkAuthStatus();
-    setupNotificationListeners();
-    checkInitialNotification();
-
+    
     // Cleanup FCM listeners on unmount
     return () => {
       fcmUnsubscribeRef.current.forEach(unsubscribe => unsubscribe());
     };
   }, []);
 
+  // Setup notification listeners only after app is ready
+  useEffect(() => {
+    if (isAppReady) {
+      setupNotificationListeners();
+      checkInitialNotification();
+    }
+  }, [isAppReady]);
+
   // Refresh wallet when screen changes (except Login)
   useEffect(() => {
-    if (currentScreen !== 'Login' && userData) {
+    if (currentScreen !== 'Login' && currentScreen !== 'Maintenance' && userData) {
       refreshWalletBalance();
     }
   }, [currentScreen, userData]);
+
+  // Refresh notifications when user logs in (only run once when userData becomes available)
+  useEffect(() => {
+    if (userData && currentScreen !== 'Login' && currentScreen !== 'Maintenance') {
+      refreshUnreadCount();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData]);
+
+  // Register FCM token when app is ready and user is logged in
+  useEffect(() => {
+    if (isAppReady && userData && !fcmTokenRegistered.current && currentScreen !== 'Login' && currentScreen !== 'Maintenance') {
+      // Delay FCM registration to ensure Activity is fully ready (3 seconds)
+      const timer = setTimeout(() => {
+        registerPushToken();
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isAppReady, userData, currentScreen]);
 
   /**
    * Load saved app mode from AsyncStorage
@@ -150,6 +211,30 @@ function AppContent(): React.JSX.Element {
       return savedMode === 'campaign';
     } catch (error) {
       console.error('Error loading app mode:', error);
+      return false;
+    }
+  };
+
+  /**
+   * Check maintenance mode
+   */
+  const checkMaintenanceMode = async (): Promise<boolean> => {
+    try {
+      const result = await notificationApiService.checkMaintenanceMode();
+      
+      if (result.success && result.data?.is_maintenance) {
+        setMaintenanceMode({
+          enabled: true,
+          message: result.data.message,
+          endTime: result.data.end_time,
+        });
+        return true;
+      }
+      
+      setMaintenanceMode({enabled: false, message: '', endTime: null});
+      return false;
+    } catch (error) {
+      console.error('Error checking maintenance mode:', error);
       return false;
     }
   };
@@ -172,6 +257,9 @@ function AppContent(): React.JSX.Element {
       const body = message.notification?.body || '';
       
       notificationService.showLocalNotification(title, body, message.data);
+      
+      // Refresh unread count
+      refreshUnreadCount();
     });
     fcmUnsubscribeRef.current.push(unsubscribeForeground);
 
@@ -179,6 +267,7 @@ function AppContent(): React.JSX.Element {
     const unsubscribeOpened = notificationService.onNotificationOpenedApp((message) => {
       console.log('Notification opened app:', message);
       handleNotificationAction(message);
+      refreshUnreadCount();
     });
     fcmUnsubscribeRef.current.push(unsubscribeOpened);
 
@@ -189,7 +278,7 @@ function AppContent(): React.JSX.Element {
       // Check if user is logged in before updating token
       const isAuthenticated = await authService.isAuthenticated();
       if (isAuthenticated) {
-        await authService.updatePushToken(newToken);
+        await notificationApiService.registerFcmToken(newToken);
       }
     });
     fcmUnsubscribeRef.current.push(unsubscribeTokenRefresh);
@@ -201,13 +290,17 @@ function AppContent(): React.JSX.Element {
    * Check if app was opened from a notification (quit state)
    */
   const checkInitialNotification = async () => {
-    const initialNotification = await notificationService.getInitialNotification();
-    if (initialNotification) {
-      console.log('App opened from notification (quit state):', initialNotification);
-      // Handle the notification after auth check
-      setTimeout(() => {
-        handleNotificationAction(initialNotification);
-      }, 1000);
+    try {
+      const initialNotification = await notificationService.getInitialNotification();
+      if (initialNotification) {
+        console.log('App opened from notification (quit state):', initialNotification);
+        // Handle the notification after auth check
+        setTimeout(() => {
+          handleNotificationAction(initialNotification);
+        }, 1000);
+      }
+    } catch (error) {
+      console.log('Could not check initial notification:', error);
     }
   };
 
@@ -224,6 +317,9 @@ function AppContent(): React.JSX.Element {
     } else if (data?.action) {
       // Handle custom actions
       console.log('Handling notification action:', data.action);
+      if (data.action === 'top_up_wallet') {
+        setCurrentScreen('BuySms');
+      }
     }
   };
 
@@ -231,6 +327,12 @@ function AppContent(): React.JSX.Element {
    * Register FCM token after login
    */
   const registerPushToken = async () => {
+    // Prevent duplicate registration
+    if (fcmTokenRegistered.current) {
+      console.log('FCM token already registered, skipping');
+      return;
+    }
+
     try {
       if (!notificationService.isFirebaseAvailable()) {
         console.log('Firebase not available, skipping push token registration');
@@ -239,17 +341,32 @@ function AppContent(): React.JSX.Element {
 
       console.log('Registering FCM token...');
       
+      // Check if permission already granted
+      const hasPermission = await notificationService.checkNotificationPermission();
+      
+      if (!hasPermission) {
+        console.log('Notification permission not granted, requesting...');
+        // Request permission
+        const granted = await notificationService.requestNotificationPermission();
+        if (!granted) {
+          console.log('Notification permission denied by user');
+          return;
+        }
+        console.log('Notification permission granted');
+      }
+      
       // Get FCM token
       const fcmToken = await notificationService.getFCMToken();
       
       if (fcmToken) {
         console.log('Got FCM token, sending to server...');
         
-        // Send token to server
-        const result = await authService.updatePushToken(fcmToken);
+        // Send token to server using new API service
+        const result = await notificationApiService.registerFcmToken(fcmToken);
         
         if (result.success) {
           console.log('FCM token registered successfully');
+          fcmTokenRegistered.current = true;
         } else {
           console.log('Failed to register FCM token:', result.message);
         }
@@ -281,7 +398,19 @@ function AppContent(): React.JSX.Element {
       const authenticated = await authService.isAuthenticated();
       
       if (authenticated) {
-        console.log('User is authenticated, getting user data...');
+        console.log('User is authenticated, checking maintenance mode...');
+        
+        // Check maintenance mode first
+        const isInMaintenance = await checkMaintenanceMode();
+        
+        if (isInMaintenance) {
+          console.log('App is in maintenance mode');
+          setCurrentScreen('Maintenance');
+          setIsCheckingAuth(false);
+          return;
+        }
+        
+        console.log('Getting user data...');
         const user = await authService.getCurrentUser();
         
         if (user) {
@@ -300,8 +429,8 @@ function AppContent(): React.JSX.Element {
           // Refresh wallet balance
           refreshWalletBalance();
           
-          // Register push token for already logged in user
-          registerPushToken();
+          // Refresh notification count
+          refreshUnreadCount();
         } else {
           console.log('No user data found, redirecting to login');
           setCurrentScreen('Login');
@@ -339,21 +468,22 @@ function AppContent(): React.JSX.Element {
     companyName: userData?.company_name || 'Dashboard User',
   };
 
-  const navigate = (screen: string, params?: any) => {
+  const navigate = useCallback((screen: string, params?: any) => {
+    console.log('Navigate called:', screen);
     setCurrentScreen(screen as ScreenName);
     setRouteParams({params: params || {}});
     setSidebarVisible(false);
-  };
+  }, []);
 
-  const openSidebar = () => {
-    console.log('Opening sidebar');
+  const openSidebar = useCallback(() => {
+    console.log('openSidebar called');
     setSidebarVisible(true);
-  };
+  }, []);
 
-  const closeSidebar = () => {
+  const closeSidebar = useCallback(() => {
     console.log('Closing sidebar');
     setSidebarVisible(false);
-  };
+  }, []);
 
   const handleModeChange = (newCampaignMode: boolean) => {
     console.log('Mode changed to:', newCampaignMode ? 'Campaign' : 'Dashboard');
@@ -365,6 +495,12 @@ function AppContent(): React.JSX.Element {
     setSidebarVisible(false);
     
     try {
+      // Unregister FCM token on logout
+      await notificationApiService.unregisterFcmToken();
+      
+      // Reset FCM registration flag
+      fcmTokenRegistered.current = false;
+      
       // Delete FCM token on logout
       if (notificationService.isFirebaseAvailable()) {
         await notificationService.deleteFCMToken();
@@ -396,6 +532,12 @@ function AppContent(): React.JSX.Element {
     setSidebarVisible(false);
     
     try {
+      // Unregister FCM token
+      await notificationApiService.unregisterFcmToken();
+      
+      // Reset FCM registration flag
+      fcmTokenRegistered.current = false;
+      
       // Delete FCM token
       if (notificationService.isFirebaseAvailable()) {
         await notificationService.deleteFCMToken();
@@ -425,7 +567,19 @@ function AppContent(): React.JSX.Element {
   const handleLoginSuccess = async (loginData: any) => {
     console.log('Login successful, updating user data');
     if (loginData?.user) {
+      // Check maintenance mode first
+      const isInMaintenance = await checkMaintenanceMode();
+      
+      if (isInMaintenance) {
+        console.log('App is in maintenance mode after login');
+        setCurrentScreen('Maintenance');
+        return;
+      }
+      
       setUserData(loginData.user);
+      
+      // Reset FCM registration flag for new login
+      fcmTokenRegistered.current = false;
       
       // Set initial wallet balance from login response
       if (loginData.user.wallet_balance) {
@@ -455,14 +609,48 @@ function AppContent(): React.JSX.Element {
         refreshWalletBalance();
       }, 500);
       
-      // Register FCM token after successful login
+      // Refresh notifications
       setTimeout(() => {
-        registerPushToken();
+        refreshUnreadCount();
+        refreshNotifications();
       }, 1000);
     }
   };
 
-  const navigation = {
+  const handleNotificationPress = async () => {
+    // Check if notification permission is granted
+    if (notificationService.isFirebaseAvailable()) {
+      const hasPermission = await notificationService.checkNotificationPermission();
+      
+      if (!hasPermission && !fcmTokenRegistered.current) {
+        // Request permission when user clicks notification bell
+        const granted = await notificationService.requestNotificationPermission();
+        
+        if (granted) {
+          // Now try to register FCM token
+          registerPushToken();
+        }
+      }
+    }
+    
+    navigate('Notifications');
+  };
+
+  const handleMaintenanceRetry = async () => {
+    const isStillInMaintenance = await checkMaintenanceMode();
+    
+    if (!isStillInMaintenance) {
+      // Navigate to dashboard
+      const savedCampaignMode = await loadAppMode();
+      if (savedCampaignMode) {
+        setCurrentScreen('CampaignHome');
+      } else {
+        setCurrentScreen('Dashboard');
+      }
+    }
+  };
+
+  const navigation = React.useMemo(() => ({
     navigate,
     openDrawer: openSidebar,
     goBack: () => {
@@ -476,7 +664,7 @@ function AppContent(): React.JSX.Element {
     reset: ({routes}: {index: number; routes: {name: string}[]}) => {
       setCurrentScreen(routes[0].name as ScreenName);
     },
-  };
+  }), [navigate, openSidebar, isCampaignMode]);
 
   // Show loading screen while checking auth
   if (isCheckingAuth) {
@@ -495,6 +683,18 @@ function AppContent(): React.JSX.Element {
     );
   }
 
+  // Show maintenance screen if in maintenance mode
+  if (currentScreen === 'Maintenance' || maintenanceMode.enabled) {
+    return (
+      <MaintenanceScreen
+        message={maintenanceMode.message}
+        endTime={maintenanceMode.endTime}
+        onRetry={handleMaintenanceRetry}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   const renderScreen = () => {
     switch (currentScreen) {
       case 'Login':
@@ -505,7 +705,7 @@ function AppContent(): React.JSX.Element {
           />
         );
       case 'Dashboard':
-        return <DashboardScreen navigation={navigation} />;
+        return <DashboardScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'SMSWallet':
         return <SMSWalletScreen navigation={navigation} />;
       case 'SendSMS':
@@ -555,7 +755,7 @@ function AppContent(): React.JSX.Element {
       case 'ChangePassword':
         return <ChangePasswordScreen navigation={navigation} />;
       case 'CampaignHome':
-        return <CampaignDashboardScreen navigation={navigation} />;
+        return <CampaignDashboardScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'CampaignQuick':
         return <QuickCampaignScreen navigation={navigation} />;
       case 'CampaignFile':
@@ -568,6 +768,8 @@ function AppContent(): React.JSX.Element {
         return <CampaignAccountsScreen navigation={navigation} />;
       case 'CampaignAddAccount':
         return <CampaignAddAccountScreen navigation={navigation} />;
+      case 'Notifications':
+        return <NotificationsScreen navigation={navigation} />;
       default:
         return (
           <PlaceholderScreen
@@ -582,7 +784,7 @@ function AppContent(): React.JSX.Element {
     <WalletContext.Provider value={{walletBalance, refreshWallet: refreshWalletBalance}}>
       <StatusBar barStyle="light-content" backgroundColor="#293B50" />
       {renderScreen()}
-      {currentScreen !== 'Login' && (
+      {currentScreen !== 'Login' && currentScreen !== 'Maintenance' && (
         <SidebarModal
           visible={sidebarVisible}
           onClose={closeSidebar}
@@ -597,6 +799,15 @@ function AppContent(): React.JSX.Element {
         />
       )}
     </WalletContext.Provider>
+  );
+}
+
+// Wrapper component that provides notification context
+function AppContent(): React.JSX.Element {
+  return (
+    <NotificationProvider>
+      <AppContentWithNotifications />
+    </NotificationProvider>
   );
 }
 

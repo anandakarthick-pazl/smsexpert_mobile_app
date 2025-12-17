@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useCallback} from 'react';
 import {
   View,
   Text,
@@ -15,9 +15,27 @@ import Header from '../components/Header';
 interface CampaignDashboardScreenProps {
   navigation: any;
   walletBalance?: string;
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const CampaignDashboardScreen: React.FC<CampaignDashboardScreenProps> = ({navigation, walletBalance = '£0.00'}) => {
+const CampaignDashboardScreen: React.FC<CampaignDashboardScreenProps> = ({navigation, walletBalance = '£0.00', onNotificationPress, notificationCount = 0}) => {
+  
+  // Memoize the menu press handler
+  const handleMenuPress = useCallback(() => {
+    console.log('CampaignDashboardScreen: handleMenuPress called');
+    if (navigation.openDrawer) {
+      navigation.openDrawer();
+    }
+  }, [navigation]);
+
+  const handleNotificationPress = () => {
+    if (onNotificationPress) {
+      onNotificationPress();
+    } else {
+      navigation.navigate('Notifications');
+    }
+  };
   
   const handleQuickCampaign = () => {
     navigation.navigate('CampaignQuick');
@@ -52,8 +70,10 @@ const CampaignDashboardScreen: React.FC<CampaignDashboardScreenProps> = ({naviga
       <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
       <Header 
         title="Campaign Manager" 
-        onMenuPress={() => navigation.openDrawer()}
+        onMenuPress={handleMenuPress}
         walletBalance={walletBalance}
+        onNotificationPress={handleNotificationPress}
+        notificationCount={notificationCount}
       />
       
       <ScrollView 

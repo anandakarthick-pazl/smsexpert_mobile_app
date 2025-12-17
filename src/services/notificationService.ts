@@ -3,18 +3,12 @@
  * Handle Firebase Cloud Messaging for push notifications
  */
 
-import {Platform, PermissionsAndroid, Alert} from 'react-native';
-import {storeSettings, getSettings} from './storageService';
-
-// FCM Token storage key
-const FCM_TOKEN_KEY = '@smsexpert_fcm_token';
+import {Platform, PermissionsAndroid, Alert, AppState, Linking} from 'react-native';
 
 // Try to import Firebase messaging
 let messaging: any = null;
-let firebaseApp: any = null;
 
 try {
-  firebaseApp = require('@react-native-firebase/app').default;
   messaging = require('@react-native-firebase/messaging').default;
   console.log('Firebase messaging loaded successfully');
 } catch (error) {
@@ -29,6 +23,26 @@ export const isFirebaseAvailable = (): boolean => {
 };
 
 /**
+ * Check if notification permission is granted
+ */
+export const checkNotificationPermission = async (): Promise<boolean> => {
+  try {
+    if (!messaging) {
+      return false;
+    }
+
+    const authStatus = await messaging().hasPermission();
+    return (
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL
+    );
+  } catch (error) {
+    console.log('Error checking notification permission:', error);
+    return false;
+  }
+};
+
+/**
  * Request notification permissions (iOS and Android 13+)
  */
 export const requestNotificationPermission = async (): Promise<boolean> => {
@@ -38,34 +52,89 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
       return false;
     }
 
-    if (Platform.OS === 'android') {
-      // Android 13+ requires notification permission
-      if (Platform.Version >= 33) {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          console.log('Notification permission denied');
-          return false;
-        }
-      }
-    }
-
-    // Request Firebase messaging permission
-    const authStatus = await messaging().requestPermission();
-    const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-    if (enabled) {
-      console.log('Notification permission granted:', authStatus);
+    // First check if already granted
+    const alreadyGranted = await checkNotificationPermission();
+    if (alreadyGranted) {
+      console.log('Notification permission already granted');
       return true;
     }
 
-    console.log('Notification permission denied:', authStatus);
-    return false;
-  } catch (error) {
-    console.error('Error requesting notification permission:', error);
+    console.log('Requesting notification permission...');
+
+    if (Platform.OS === 'android') {
+      // Android 13+ requires POST_NOTIFICATIONS permission
+      if (Platform.Version >= 33) {
+        console.log('Android 13+, requesting POST_NOTIFICATIONS permission');
+        try {
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+            {
+              title: 'Notification Permission',
+              message: 'SMS Expert needs notification permission to send you important updates about your campaigns and wallet.',
+              buttonNeutral: 'Ask Me Later',
+              buttonNegative: 'Cancel',
+              buttonPositive: 'OK',
+            }
+          );
+          
+          console.log('Android permission result:', granted);
+          
+          if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+            console.log('Android notification permission granted');
+            return true;
+          } else if (granted === PermissionsAndroid.RESULTS.DENIED) {
+            console.log('Android notification permission denied');
+            return false;
+          } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+            console.log('Android notification permission permanently denied');
+            // Show alert to guide user to settings
+            Alert.alert(
+              'Notifications Disabled',
+              'To receive important updates, please enable notifications in your device settings.',
+              [
+                {text: 'Cancel', style: 'cancel'},
+                {text: 'Open Settings', onPress: () => Linking.openSettings()},
+              ]
+            );
+            return false;
+          }
+        } catch (permError: any) {
+          console.log('Error requesting Android permission:', permError.message);
+          // If Activity not attached, return false and let caller retry
+          if (permError.message?.includes('not attached to an Activity')) {
+            console.log('Activity not attached, will retry later');
+            return false;
+          }
+          throw permError;
+        }
+      } else {
+        // Android < 13 doesn't need runtime permission for notifications
+        console.log('Android < 13, no runtime permission needed');
+        return true;
+      }
+    }
+
+    // Request Firebase messaging permission (for iOS)
+    try {
+      console.log('Requesting Firebase messaging permission...');
+      const authStatus = await messaging().requestPermission();
+      const enabled =
+        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+      if (enabled) {
+        console.log('Firebase notification permission granted:', authStatus);
+        return true;
+      }
+
+      console.log('Firebase notification permission denied:', authStatus);
+      return false;
+    } catch (fbError) {
+      console.log('Error requesting Firebase permission:', fbError);
+      return false;
+    }
+  } catch (error: any) {
+    console.error('Error in requestNotificationPermission:', error);
     return false;
   }
 };
@@ -80,11 +149,16 @@ export const getFCMToken = async (): Promise<string | null> => {
       return null;
     }
 
-    // Request permission first
-    const hasPermission = await requestNotificationPermission();
+    // Check current permission status
+    const hasPermission = await checkNotificationPermission();
+    
     if (!hasPermission) {
-      console.log('No notification permission, cannot get FCM token');
-      return null;
+      // Try to request permission
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        console.log('No notification permission, cannot get FCM token');
+        return null;
+      }
     }
 
     // Get the token
@@ -97,8 +171,29 @@ export const getFCMToken = async (): Promise<string | null> => {
 
     console.log('Failed to get FCM token');
     return null;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error getting FCM token:', error);
+    return null;
+  }
+};
+
+/**
+ * Get FCM token without requesting permission (for already granted)
+ */
+export const getFCMTokenIfPermitted = async (): Promise<string | null> => {
+  try {
+    if (!messaging) {
+      return null;
+    }
+
+    const hasPermission = await checkNotificationPermission();
+    if (!hasPermission) {
+      return null;
+    }
+
+    const token = await messaging().getToken();
+    return token || null;
+  } catch (error) {
     return null;
   }
 };
@@ -215,7 +310,6 @@ export const setBackgroundMessageHandler = (
  * Show local notification for foreground messages
  */
 export const showLocalNotification = (title: string, body: string, data?: any): void => {
-  // For foreground notifications, we can show an Alert or use a library like notifee
   Alert.alert(
     title || 'New Notification',
     body || '',
@@ -269,10 +363,34 @@ export const unsubscribeFromTopic = async (topic: string): Promise<boolean> => {
   }
 };
 
+/**
+ * Prompt user to enable notifications if not granted
+ */
+export const promptEnableNotifications = (): void => {
+  Alert.alert(
+    'Enable Notifications',
+    'Would you like to receive notifications about your campaigns, wallet balance, and important updates?',
+    [
+      {text: 'Not Now', style: 'cancel'},
+      {
+        text: 'Enable',
+        onPress: async () => {
+          const granted = await requestNotificationPermission();
+          if (granted) {
+            Alert.alert('Success', 'Notifications enabled successfully!');
+          }
+        },
+      },
+    ]
+  );
+};
+
 export default {
   isFirebaseAvailable,
+  checkNotificationPermission,
   requestNotificationPermission,
   getFCMToken,
+  getFCMTokenIfPermitted,
   deleteFCMToken,
   onTokenRefresh,
   onForegroundMessage,
@@ -282,4 +400,5 @@ export default {
   showLocalNotification,
   subscribeToTopic,
   unsubscribeFromTopic,
+  promptEnableNotifications,
 };

@@ -31,3 +31,5 @@ export {default as CampaignBlacklistScreen} from './CampaignBlacklistScreen';
 export {default as CampaignAccountsScreen} from './CampaignAccountsScreen';
 export {default as CampaignAddAccountScreen} from './CampaignAddAccountScreen';
 export {default as PlaceholderScreen} from './PlaceholderScreen';
+export {default as NotificationsScreen} from './NotificationsScreen';
+export {default as MaintenanceScreen} from './MaintenanceScreen';

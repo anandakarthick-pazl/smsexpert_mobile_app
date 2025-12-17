@@ -104,9 +104,11 @@ interface DashboardScreenProps {
     navigate: (screen: string) => void;
     openDrawer: () => void;
   };
+  onNotificationPress?: () => void;
+  notificationCount?: number;
 }
 
-const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation}) => {
+const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation, onNotificationPress, notificationCount = 0}) => {
   const [showFilterPopup, setShowFilterPopup] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -115,6 +117,15 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation}) => {
     startDate: null,
     endDate: null,
   });
+
+  // Memoize the menu press handler
+  const handleMenuPress = useCallback(() => {
+    console.log('DashboardScreen: handleMenuPress called');
+    console.log('DashboardScreen: navigation.openDrawer exists:', !!navigation.openDrawer);
+    if (navigation.openDrawer) {
+      navigation.openDrawer();
+    }
+  }, [navigation]);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -155,7 +166,11 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation}) => {
   }, [fetchDashboardData]);
 
   const handleNotificationPress = () => {
-    Alert.alert('Notifications', 'You have 3 new notifications');
+    if (onNotificationPress) {
+      onNotificationPress();
+    } else {
+      navigation.navigate('Notifications');
+    }
   };
 
   const handleFilterPress = () => {
@@ -212,9 +227,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation}) => {
         <StatusBar barStyle="light-content" backgroundColor="#1a252f" />
         <Header
           title="Dashboard"
-          onMenuPress={() => navigation.openDrawer()}
+          onMenuPress={handleMenuPress}
           onNotificationPress={handleNotificationPress}
-          notificationCount={3}
+          notificationCount={notificationCount}
         />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#ea6118" />
@@ -231,9 +246,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({navigation}) => {
       {/* Header */}
       <Header
         title="Dashboard"
-        onMenuPress={() => navigation.openDrawer()}
+        onMenuPress={handleMenuPress}
         onNotificationPress={handleNotificationPress}
-        notificationCount={3}
+        notificationCount={notificationCount}
       />
 
       <ScrollView

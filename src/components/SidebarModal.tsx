@@ -9,6 +9,7 @@ import {
   Dimensions,
   Pressable,
   Alert,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -16,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {WalletContext} from '../../App';
 
 const {width} = Dimensions.get('window');
-const SIDEBAR_WIDTH = 250;
+const SIDEBAR_WIDTH = 280;
 
 // Storage key for app mode
 const APP_MODE_KEY = '@sms_expert_app_mode';
@@ -84,6 +85,7 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
 }) => {
   const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [isAnimating, setIsAnimating] = useState(false);
 
   // Get wallet balance from context
   const {walletBalance} = useContext(WalletContext);
@@ -97,10 +99,12 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   useEffect(() => {
     console.log('SidebarModal useEffect - visible:', visible);
     if (visible) {
-      // Reset animation values when opening
+      setIsAnimating(true);
+      // Reset to closed position first
       slideAnim.setValue(-SIDEBAR_WIDTH);
       fadeAnim.setValue(0);
       
+      // Then animate open
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: 0,
@@ -112,13 +116,18 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
           duration: 300,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        setIsAnimating(false);
+      });
     }
-  }, [visible]);
+  }, [visible, slideAnim, fadeAnim]);
 
   const handleNavigate = (route: string) => {
     console.log('Navigating to:', route);
-    onNavigate(route);
+    handleClose();
+    setTimeout(() => {
+      onNavigate(route);
+    }, 100);
   };
 
   const handleSwitchMode = async () => {
@@ -136,15 +145,18 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
     onModeChange(newMode);
     
     // Navigate to appropriate dashboard
-    if (newMode) {
-      onNavigate('CampaignHome');
-    } else {
-      onNavigate('Dashboard');
-    }
+    handleClose();
+    setTimeout(() => {
+      if (newMode) {
+        onNavigate('CampaignHome');
+      } else {
+        onNavigate('Dashboard');
+      }
+    }, 100);
   };
 
   const handleClose = () => {
-    console.log('Closing sidebar');
+    console.log('SidebarModal: handleClose called');
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: -SIDEBAR_WIDTH,
@@ -171,9 +183,12 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
           text: 'Logout All',
           style: 'destructive',
           onPress: () => {
-            if (onLogoutAllDevices) {
-              onLogoutAllDevices();
-            }
+            handleClose();
+            setTimeout(() => {
+              if (onLogoutAllDevices) {
+                onLogoutAllDevices();
+              }
+            }, 300);
           },
         },
       ]
@@ -189,13 +204,27 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
         {
           text: 'Logout',
           style: 'destructive',
-          onPress: onLogout,
+          onPress: () => {
+            handleClose();
+            setTimeout(() => {
+              onLogout();
+            }, 300);
+          },
         },
       ]
     );
   };
 
-  console.log('SidebarModal render - visible:', visible);
+  console.log('SidebarModal render - visible:', visible, 'at', new Date().toISOString());
+
+  // Log when visible prop changes
+  useEffect(() => {
+    console.log('SidebarModal: visible changed to', visible);
+  }, [visible]);
+
+  if (!visible) {
+    return null;
+  }
 
   return (
     <Modal
@@ -206,11 +235,9 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
       statusBarTranslucent={true}>
       <View style={styles.modalContainer}>
         {/* Backdrop */}
-        <Pressable 
-          style={styles.backdropPressable}
-          onPress={handleClose}>
+        <TouchableWithoutFeedback onPress={handleClose}>
           <Animated.View style={[styles.backdrop, {opacity: fadeAnim}]} />
-        </Pressable>
+        </TouchableWithoutFeedback>
 
         {/* Sidebar */}
         <Animated.View
@@ -373,21 +400,18 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
   },
-  backdropPressable: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
   backdrop: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   sidebar: {
     width: SIDEBAR_WIDTH,
     height: '100%',
     backgroundColor: '#293B50',
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
     shadowColor: '#000',
     shadowOffset: {width: 4, height: 0},
     shadowOpacity: 0.3,

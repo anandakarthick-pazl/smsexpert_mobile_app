@@ -26,6 +26,29 @@ const Header: React.FC<HeaderProps> = ({
   onBackPress,
   walletBalance,
 }) => {
+  const handleMenuPress = () => {
+    console.log('Header: Menu button pressed, calling onMenuPress');
+    if (onMenuPress) {
+      onMenuPress();
+    } else {
+      console.log('Header: onMenuPress is undefined!');
+    }
+  };
+
+  const handleBackPress = () => {
+    console.log('Header: Back button pressed');
+    if (onBackPress) {
+      onBackPress();
+    }
+  };
+
+  const handleNotificationPress = () => {
+    console.log('Header: Notification button pressed');
+    if (onNotificationPress) {
+      onNotificationPress();
+    }
+  };
+
   return (
     <View style={styles.header}>
       {/* Left Button - Menu or Back */}
@@ -35,10 +58,7 @@ const Header: React.FC<HeaderProps> = ({
             styles.menuButton,
             pressed && styles.menuButtonPressed,
           ]}
-          onPress={() => {
-            console.log('Back button pressed');
-            onBackPress?.();
-          }}
+          onPress={handleBackPress}
           hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Text style={styles.backIcon}>←</Text>
         </Pressable>
@@ -48,10 +68,7 @@ const Header: React.FC<HeaderProps> = ({
             styles.menuButton,
             pressed && styles.menuButtonPressed,
           ]}
-          onPress={() => {
-            console.log('Menu button pressed');
-            onMenuPress();
-          }}
+          onPress={handleMenuPress}
           hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
           <Text style={styles.menuIcon}>☰</Text>
         </Pressable>
@@ -66,8 +83,11 @@ const Header: React.FC<HeaderProps> = ({
       <View style={styles.rightSection}>
         {/* Notification Bell */}
         <TouchableOpacity
-          style={styles.iconButton}
-          onPress={onNotificationPress}
+          style={[
+            styles.iconButton,
+            notificationCount > 0 && styles.iconButtonWithBadge,
+          ]}
+          onPress={handleNotificationPress}
           activeOpacity={0.7}>
           <Text style={styles.bellIcon}>🔔</Text>
           {notificationCount > 0 && (
@@ -138,6 +158,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     position: 'relative',
   },
+  iconButtonWithBadge: {
+    backgroundColor: 'rgba(234, 97, 24, 0.2)',
+  },
   bellIcon: {
     fontSize: 20,
   },
@@ -152,9 +175,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: '#293B50',
   },
   notificationCount: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#ffffff',
   },

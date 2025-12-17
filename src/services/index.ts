@@ -9,6 +9,7 @@ export * from './storageService';
 export * from './authService';
 export * from './walletService';
 export * from './notificationService';
+export * from './notificationApiService';
 export * from './dashboardService';
 export * from './smsService';
 export * from './receivedSmsService';
