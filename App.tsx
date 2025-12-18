@@ -206,25 +206,60 @@ function AppContentWithNotifications(): React.JSX.Element {
 
   // Process pending notification after user is authenticated and screen is not Login
   useEffect(() => {
-    if (pendingNotification && userData && currentScreen !== 'Login' && currentScreen !== 'Maintenance' && !initialNotificationProcessed.current) {
-      console.log('=== PROCESSING PENDING NOTIFICATION ===');
-      console.log('Pending notification:', JSON.stringify(pendingNotification, null, 2));
-      console.log('User data available:', !!userData);
-      console.log('Current screen:', currentScreen);
-      
-      initialNotificationProcessed.current = true;
-      
-      // Delay to ensure the app is fully ready
-      setTimeout(() => {
-        console.log('Executing handleNotificationAction for pending notification');
-        handleNotificationAction(pendingNotification);
-        setPendingNotification(null);
-        // Clear from storage
-        AsyncStorage.removeItem(PENDING_NOTIFICATION_KEY).then(() => {
-          console.log('Cleared pending notification from storage');
-        });
-      }, 1500); // Increased delay for app to be fully ready
-    }
+    const processPendingNotification = async () => {
+      if (pendingNotification && userData && currentScreen !== 'Login' && currentScreen !== 'Maintenance') {
+        console.log('=== PROCESSING PENDING NOTIFICATION (useEffect) ===');
+        console.log('Pending notification:', JSON.stringify(pendingNotification, null, 2));
+        console.log('User data available:', !!userData);
+        console.log('Current screen:', currentScreen);
+        console.log('Already processed:', initialNotificationProcessed.current);
+        
+        // Check if already processed
+        if (initialNotificationProcessed.current) {
+          console.log('Notification already processed, clearing pending');
+          setPendingNotification(null);
+          await AsyncStorage.removeItem(PENDING_NOTIFICATION_KEY);
+          return;
+        }
+        
+        // Mark as processed
+        initialNotificationProcessed.current = true;
+        
+        // Extract notification data
+        const data = pendingNotification.data || {};
+        const notificationId = data?.notification_id || data?.recipient_id;
+        
+        console.log('Executing navigation for pending notification, id:', notificationId);
+        
+        // Clear from storage first
+        await AsyncStorage.removeItem(PENDING_NOTIFICATION_KEY);
+        
+        // Delay to ensure the app is fully ready
+        setTimeout(() => {
+          // Navigate to notification detail
+          setRouteParams({
+            params: {
+              notification_id: notificationId,
+              fromPush: true,
+            },
+          });
+          setCurrentScreen('NotificationDetail');
+          
+          // Clear pending notification state
+          setPendingNotification(null);
+          
+          console.log('Navigated to NotificationDetail for pending notification');
+          
+          // Refresh notifications
+          setTimeout(() => {
+            refreshNotifications();
+            refreshUnreadCount();
+          }, 500);
+        }, 500); // Small delay for app to be ready
+      }
+    };
+    
+    processPendingNotification();
   }, [pendingNotification, userData, currentScreen]);
 
   // Refresh wallet when screen changes (except Login)
@@ -384,7 +419,7 @@ function AppContentWithNotifications(): React.JSX.Element {
   /**
    * Handle notification action/navigation
    */
-  const handleNotificationAction = (message: any) => {
+  const handleNotificationAction = async (message: any) => {
     console.log('=== HANDLE NOTIFICATION ACTION ===');
     const data = message.data || {};
     const notificationPayload = message.notification || {};
@@ -392,12 +427,26 @@ function AppContentWithNotifications(): React.JSX.Element {
     console.log('Full message:', JSON.stringify(message, null, 2));
     console.log('Data:', JSON.stringify(data, null, 2));
     console.log('Notification payload:', JSON.stringify(notificationPayload, null, 2));
+    console.log('Current userData state:', !!userData);
     
-    // Check if user is authenticated before navigating
-    if (!userData) {
-      console.log('User not authenticated, storing notification for later');
+    // Check authentication status directly (not just state)
+    const isAuthenticated = await authService.isAuthenticated();
+    console.log('Is authenticated (from service):', isAuthenticated);
+    
+    // If not authenticated at all, store for later
+    if (!isAuthenticated) {
+      console.log('User not authenticated at all, storing notification for after login');
       setPendingNotification(message);
-      AsyncStorage.setItem(PENDING_NOTIFICATION_KEY, JSON.stringify(message));
+      await AsyncStorage.setItem(PENDING_NOTIFICATION_KEY, JSON.stringify(message));
+      return;
+    }
+    
+    // If authenticated but userData not loaded yet, store and wait
+    if (!userData) {
+      console.log('Authenticated but userData not loaded yet, storing notification');
+      setPendingNotification(message);
+      await AsyncStorage.setItem(PENDING_NOTIFICATION_KEY, JSON.stringify(message));
+      // The useEffect will process it when userData becomes available
       return;
     }
     
@@ -405,7 +454,13 @@ function AppContentWithNotifications(): React.JSX.Element {
     const notificationId = data?.notification_id || data?.recipient_id;
     
     console.log('Extracted notificationId:', notificationId);
-    console.log('Current userData:', !!userData);
+    console.log('Navigating to notification...');
+    
+    // Mark as processed to prevent duplicate handling
+    initialNotificationProcessed.current = true;
+    
+    // Clear any stored notification
+    await AsyncStorage.removeItem(PENDING_NOTIFICATION_KEY);
     
     if (data?.screen && data.screen !== 'Notifications') {
       // Navigate to specific screen based on notification data
@@ -521,6 +576,10 @@ function AppContentWithNotifications(): React.JSX.Element {
     try {
       console.log('Checking authentication status...');
       
+      // Reset the processed flag on fresh auth check
+      // This allows notification to be processed if coming from background
+      initialNotificationProcessed.current = false;
+      
       // Load saved app mode
       const savedCampaignMode = await loadAppMode();
       setIsCampaignMode(savedCampaignMode);
@@ -629,9 +688,20 @@ function AppContentWithNotifications(): React.JSX.Element {
     setSidebarVisible(false);
   }, []);
 
-  const openSidebar = useCallback(() => {
+  const openSidebar = useCallback(async () => {
     console.log('openSidebar called');
     setSidebarVisible(true);
+    
+    // Refresh user data to get latest dashboard_access from server
+    try {
+      const result = await authService.refreshUserData();
+      if (result.success && result.user) {
+        console.log('User data refreshed on sidebar open, dashboard_access:', result.user.dashboard_access);
+        setUserData(result.user);
+      }
+    } catch (error) {
+      console.error('Error refreshing user data on sidebar open:', error);
+    }
   }, []);
 
   const closeSidebar = useCallback(() => {

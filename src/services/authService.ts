@@ -356,6 +356,61 @@ export const validateToken = async (): Promise<boolean> => {
   }
 };
 
+/**
+ * Refresh user data from API
+ * Call this to get updated user data (including dashboard_access) from server
+ */
+export const refreshUserData = async (): Promise<{success: boolean; user?: User; message?: string}> => {
+  try {
+    console.log('Refreshing user data from API...');
+    
+    // Make API call to get profile - disable error toast for background operation
+    const response = await get<any>(API_ENDPOINTS.PROFILE, true, false);
+    
+    console.log('Refresh user data response:', response);
+    
+    if (response.status && response.data?.user) {
+      // Get existing user data
+      const existingUser = await getUserData();
+      
+      if (existingUser) {
+        // Merge API response with existing data (preserve fields not returned by API)
+        const updatedUser: User = {
+          ...existingUser,
+          id: response.data.user.id || existingUser.id,
+          bigid: response.data.user.bigid || existingUser.bigid,
+          username: response.data.user.username || existingUser.username,
+          contact_name: response.data.user.contact_name || existingUser.contact_name,
+          company_name: response.data.user.company_name || existingUser.company_name,
+          email: response.data.user.email || existingUser.email,
+          dashboard_access: response.data.user.dashboard_access || existingUser.dashboard_access,
+        };
+        
+        // Store updated user data
+        await storeUserData(updatedUser);
+        
+        console.log('User data refreshed successfully, dashboard_access:', updatedUser.dashboard_access);
+        
+        return {
+          success: true,
+          user: updatedUser,
+        };
+      }
+    }
+    
+    return {
+      success: false,
+      message: response.message || 'Failed to refresh user data',
+    };
+  } catch (error: any) {
+    console.error('Refresh user data error:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to refresh user data',
+    };
+  }
+};
+
 export default {
   login,
   logout,
@@ -365,4 +420,5 @@ export default {
   isAuthenticated,
   getCurrentUser,
   validateToken,
+  refreshUserData,
 };

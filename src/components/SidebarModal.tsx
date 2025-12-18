@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState, useContext} from 'react';
+import React, {useEffect, useRef, useState, useContext, useMemo} from 'react';
 import {
   View,
   Text,
@@ -140,18 +140,31 @@ const SidebarModal: React.FC<SidebarModalProps> = ({
   // Get wallet balance from context
   const {walletBalance} = useContext(WalletContext);
 
-  // Filter campaign menu items based on dashboard access
-  const filteredCampaignMenuItems = campaignMenuItemsWithAccess.filter(item =>
-    item.allowedAccess.includes(dashboardAccess.toLowerCase())
-  );
+  // Filter campaign menu items based on dashboard access - using useMemo to recalculate when dependencies change
+  const filteredCampaignMenuItems = useMemo(() => {
+    console.log('SidebarModal: Recalculating campaign menu items for access:', dashboardAccess);
+    return campaignMenuItemsWithAccess.filter(item =>
+      item.allowedAccess.includes(dashboardAccess.toLowerCase())
+    );
+  }, [dashboardAccess]);
 
-  // Get current menu items based on mode
-  const menuItems: MenuItem[] = isCampaignMode
-    ? filteredCampaignMenuItems.map(({name, icon, route}) => ({name, icon, route}))
-    : dashboardMenuItems;
+  // Get current menu items based on mode - using useMemo to recalculate when mode changes
+  const menuItems: MenuItem[] = useMemo(() => {
+    console.log('SidebarModal: Recalculating menu items, isCampaignMode:', isCampaignMode);
+    if (isCampaignMode) {
+      return filteredCampaignMenuItems.map(({name, icon, route}) => ({name, icon, route}));
+    }
+    return dashboardMenuItems;
+  }, [isCampaignMode, filteredCampaignMenuItems]);
   
   // Get user type based on mode
   const userType = isCampaignMode ? 'Campaign User' : 'Dashboard User';
+
+  // Log when mode or dashboard access changes
+  useEffect(() => {
+    console.log('SidebarModal: Mode changed - isCampaignMode:', isCampaignMode, 'dashboardAccess:', dashboardAccess);
+    console.log('SidebarModal: Current menu items count:', menuItems.length);
+  }, [isCampaignMode, dashboardAccess, menuItems.length]);
 
   useEffect(() => {
     console.log('SidebarModal useEffect - visible:', visible);

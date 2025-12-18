@@ -180,7 +180,8 @@ const NotificationDetailScreen: React.FC<NotificationDetailScreenProps> = ({navi
               await deleteNotification(notification.id);
               refreshNotifications();
               refreshUnreadCount();
-              navigation.goBack();
+              // Navigate to Notifications list after delete
+              navigation.navigate('Notifications');
             } catch (error) {
               console.error('Error deleting notification:', error);
               Alert.alert('Error', 'Failed to delete notification');
@@ -190,7 +191,7 @@ const NotificationDetailScreen: React.FC<NotificationDetailScreenProps> = ({navi
         },
       ]
     );
-  }, [notification, deleteNotification, navigation]);
+  }, [notification, deleteNotification, navigation, refreshNotifications, refreshUnreadCount]);
 
   const handleAction = useCallback(() => {
     if (!notification) return;
@@ -204,7 +205,9 @@ const NotificationDetailScreen: React.FC<NotificationDetailScreenProps> = ({navi
   }, [notification, navigation]);
 
   const handleGoBack = useCallback(() => {
-    navigation.goBack();
+    // Always navigate to Notifications list instead of goBack
+    // This ensures consistent navigation whether coming from push notification or list
+    navigation.navigate('Notifications');
   }, [navigation]);
 
   if (isLoading) {
