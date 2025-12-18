@@ -8,6 +8,7 @@ import {get, post, del} from './apiService';
 export interface Notification {
   id: string;
   notification_id: number;
+  recipient_id?: number;
   source: 'admin' | 'push';
   title: string;
   message: string;
@@ -349,6 +350,11 @@ export const getNotificationById = async (
   }
 };
 
+/**
+ * Get notification detail - alias for getNotificationById
+ */
+export const getNotificationDetail = getNotificationById;
+
 export default {
   getNotifications,
   getUnreadCount,
@@ -360,4 +366,5 @@ export default {
   unregisterFcmToken,
   checkMaintenanceMode,
   getNotificationById,
+  getNotificationDetail,
 };

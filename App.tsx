@@ -42,6 +42,7 @@ import BusinessCardScreen from './src/screens/BusinessCardScreen';
 import VotingScreen from './src/screens/VotingScreen';
 import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
+import NotificationDetailScreen from './src/screens/NotificationDetailScreen';
 import MaintenanceScreen from './src/screens/MaintenanceScreen';
 import SidebarModal from './src/components/SidebarModal';
 
@@ -60,6 +61,8 @@ import * as notificationApiService from './src/services/notificationApiService';
 
 // Storage key for app mode
 const APP_MODE_KEY = '@sms_expert_app_mode';
+// Storage key for pending notification (when app opens from quit state)
+const PENDING_NOTIFICATION_KEY = '@sms_expert_pending_notification';
 
 type ScreenName = 
   | 'Login' 
@@ -97,6 +100,7 @@ type ScreenName =
   | 'CampaignAccounts'
   | 'CampaignAddAccount'
   | 'Notifications'
+  | 'NotificationDetail'
   | 'Maintenance';
 
 // Create a global wallet balance context to share across components (used by SidebarModal)
@@ -125,6 +129,9 @@ function AppContentWithNotifications(): React.JSX.Element {
   }>({enabled: false, message: '', endTime: null});
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
+  // Store pending notification to handle after auth
+  const [pendingNotification, setPendingNotification] = useState<any>(null);
+  
   // Get toast functions
   const {showToast, showSuccess} = useToast();
   
@@ -136,6 +143,9 @@ function AppContentWithNotifications(): React.JSX.Element {
   
   // Track if FCM token has been registered
   const fcmTokenRegistered = useRef(false);
+  
+  // Track if initial notification has been processed
+  const initialNotificationProcessed = useRef(false);
 
   // Debug: Log sidebarVisible state changes
   useEffect(() => {
@@ -174,6 +184,48 @@ function AppContentWithNotifications(): React.JSX.Element {
       checkInitialNotification();
     }
   }, [isAppReady]);
+
+  // Check for pending notifications when app comes to foreground
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      if (nextAppState === 'active' && userData && !initialNotificationProcessed.current) {
+        console.log('App came to foreground, checking for pending notifications...');
+        const storedNotification = await AsyncStorage.getItem(PENDING_NOTIFICATION_KEY);
+        if (storedNotification) {
+          console.log('Found pending notification on foreground:', storedNotification);
+          const parsed = JSON.parse(storedNotification);
+          setPendingNotification(parsed);
+        }
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [userData]);
+
+  // Process pending notification after user is authenticated and screen is not Login
+  useEffect(() => {
+    if (pendingNotification && userData && currentScreen !== 'Login' && currentScreen !== 'Maintenance' && !initialNotificationProcessed.current) {
+      console.log('=== PROCESSING PENDING NOTIFICATION ===');
+      console.log('Pending notification:', JSON.stringify(pendingNotification, null, 2));
+      console.log('User data available:', !!userData);
+      console.log('Current screen:', currentScreen);
+      
+      initialNotificationProcessed.current = true;
+      
+      // Delay to ensure the app is fully ready
+      setTimeout(() => {
+        console.log('Executing handleNotificationAction for pending notification');
+        handleNotificationAction(pendingNotification);
+        setPendingNotification(null);
+        // Clear from storage
+        AsyncStorage.removeItem(PENDING_NOTIFICATION_KEY).then(() => {
+          console.log('Cleared pending notification from storage');
+        });
+      }, 1500); // Increased delay for app to be fully ready
+    }
+  }, [pendingNotification, userData, currentScreen]);
 
   // Refresh wallet when screen changes (except Login)
   useEffect(() => {
@@ -249,9 +301,11 @@ function AppContentWithNotifications(): React.JSX.Element {
       return;
     }
 
+    console.log('Setting up FCM notification listeners...');
+
     // Listen for foreground messages
     const unsubscribeForeground = notificationService.onForegroundMessage((message) => {
-      console.log('Foreground notification received:', message);
+      console.log('Foreground notification received:', JSON.stringify(message, null, 2));
       
       // Show alert for foreground notifications
       const title = message.notification?.title || 'New Message';
@@ -267,14 +321,17 @@ function AppContentWithNotifications(): React.JSX.Element {
       refreshUnreadCount();
     });
     fcmUnsubscribeRef.current.push(unsubscribeForeground);
+    console.log('Foreground message listener registered');
 
     // Listen for notification opened (background state)
     const unsubscribeOpened = notificationService.onNotificationOpenedApp((message) => {
-      console.log('Notification opened app:', message);
+      console.log('=== NOTIFICATION OPENED APP (BACKGROUND) ===');
+      console.log('Message:', JSON.stringify(message, null, 2));
       handleNotificationAction(message);
       refreshUnreadCount();
     });
     fcmUnsubscribeRef.current.push(unsubscribeOpened);
+    console.log('onNotificationOpenedApp listener registered');
 
     // Listen for token refresh
     const unsubscribeTokenRefresh = notificationService.onTokenRefresh(async (newToken) => {
@@ -296,13 +353,28 @@ function AppContentWithNotifications(): React.JSX.Element {
    */
   const checkInitialNotification = async () => {
     try {
+      console.log('Checking for initial notification...');
+      
+      // First check if there's a stored pending notification from index.js
+      const storedNotification = await AsyncStorage.getItem(PENDING_NOTIFICATION_KEY);
+      if (storedNotification) {
+        console.log('Found stored pending notification from storage');
+        const parsed = JSON.parse(storedNotification);
+        console.log('Parsed notification:', JSON.stringify(parsed, null, 2));
+        setPendingNotification(parsed);
+        return;
+      }
+      
+      // Check for Firebase initial notification (backup check)
       const initialNotification = await notificationService.getInitialNotification();
       if (initialNotification) {
-        console.log('App opened from notification (quit state):', initialNotification);
-        // Handle the notification after auth check
-        setTimeout(() => {
-          handleNotificationAction(initialNotification);
-        }, 1000);
+        console.log('App opened from notification (quit state) - from Firebase:', JSON.stringify(initialNotification, null, 2));
+        
+        // Store the notification to process after auth
+        await AsyncStorage.setItem(PENDING_NOTIFICATION_KEY, JSON.stringify(initialNotification));
+        setPendingNotification(initialNotification);
+      } else {
+        console.log('No initial notification found');
       }
     } catch (error) {
       console.log('Could not check initial notification:', error);
@@ -313,15 +385,29 @@ function AppContentWithNotifications(): React.JSX.Element {
    * Handle notification action/navigation
    */
   const handleNotificationAction = (message: any) => {
+    console.log('=== HANDLE NOTIFICATION ACTION ===');
     const data = message.data || {};
     const notificationPayload = message.notification || {};
     
-    console.log('Handling notification action:', {data, notificationPayload});
+    console.log('Full message:', JSON.stringify(message, null, 2));
+    console.log('Data:', JSON.stringify(data, null, 2));
+    console.log('Notification payload:', JSON.stringify(notificationPayload, null, 2));
+    
+    // Check if user is authenticated before navigating
+    if (!userData) {
+      console.log('User not authenticated, storing notification for later');
+      setPendingNotification(message);
+      AsyncStorage.setItem(PENDING_NOTIFICATION_KEY, JSON.stringify(message));
+      return;
+    }
     
     // Extract notification_id from data
     const notificationId = data?.notification_id || data?.recipient_id;
     
-    if (data?.screen) {
+    console.log('Extracted notificationId:', notificationId);
+    console.log('Current userData:', !!userData);
+    
+    if (data?.screen && data.screen !== 'Notifications') {
       // Navigate to specific screen based on notification data
       console.log('Navigating to screen from notification:', data.screen);
       
@@ -345,38 +431,28 @@ function AppContentWithNotifications(): React.JSX.Element {
           setCurrentScreen('BuySms');
           break;
         case 'view_notification':
-          // Navigate to notifications screen with the notification_id
-          setRouteParams({
-            params: {
-              notification_id: notificationId,
-              highlightId: notificationId,
-              fromPush: true,
-            },
-          });
-          setCurrentScreen('Notifications');
-          break;
         default:
-          // Default: navigate to notifications screen with notification_id
+          // Navigate to notification detail screen
+          console.log('Navigating to NotificationDetail with id:', notificationId);
           setRouteParams({
             params: {
               notification_id: notificationId,
-              highlightId: notificationId,
               fromPush: true,
             },
           });
-          setCurrentScreen('Notifications');
+          setCurrentScreen('NotificationDetail');
           break;
       }
     } else {
-      // No specific screen or action, go to notifications with notification_id if available
+      // No specific screen or action, go to notification detail page
+      console.log('No specific screen/action, navigating to NotificationDetail with id:', notificationId);
       setRouteParams({
         params: {
           notification_id: notificationId,
-          highlightId: notificationId,
           fromPush: true,
         },
       });
-      setCurrentScreen('Notifications');
+      setCurrentScreen('NotificationDetail');
     }
     
     // Refresh notifications after handling
@@ -480,13 +556,28 @@ function AppContentWithNotifications(): React.JSX.Element {
           console.log('User data found:', user.username);
           setUserData(user);
           
-          // Navigate to the correct dashboard based on saved mode
-          if (savedCampaignMode) {
-            console.log('Navigating to Campaign Dashboard (saved mode)');
-            setCurrentScreen('CampaignHome');
+          // Check if there's a pending notification to handle
+          const storedNotification = await AsyncStorage.getItem(PENDING_NOTIFICATION_KEY);
+          
+          if (storedNotification && !initialNotificationProcessed.current) {
+            console.log('Found pending notification, will navigate to Notifications screen');
+            // Set pending notification - it will be processed by the useEffect
+            setPendingNotification(JSON.parse(storedNotification));
+            // Navigate to a default screen first, notification handling will redirect
+            if (savedCampaignMode) {
+              setCurrentScreen('CampaignHome');
+            } else {
+              setCurrentScreen('Dashboard');
+            }
           } else {
-            console.log('Navigating to Dashboard (saved mode)');
-            setCurrentScreen('Dashboard');
+            // Navigate to the correct dashboard based on saved mode
+            if (savedCampaignMode) {
+              console.log('Navigating to Campaign Dashboard (saved mode)');
+              setCurrentScreen('CampaignHome');
+            } else {
+              console.log('Navigating to Dashboard (saved mode)');
+              setCurrentScreen('Dashboard');
+            }
           }
           
           // Refresh wallet balance
@@ -532,9 +623,9 @@ function AppContentWithNotifications(): React.JSX.Element {
   };
 
   const navigate = useCallback((screen: string, params?: any) => {
-    console.log('Navigate called:', screen);
-    setCurrentScreen(screen as ScreenName);
+    console.log('Navigate called:', screen, 'with params:', params);
     setRouteParams({params: params || {}});
+    setCurrentScreen(screen as ScreenName);
     setSidebarVisible(false);
   }, []);
 
@@ -565,6 +656,11 @@ function AppContentWithNotifications(): React.JSX.Element {
       
       // Reset FCM registration flag
       fcmTokenRegistered.current = false;
+      
+      // Clear pending notification
+      await AsyncStorage.removeItem(PENDING_NOTIFICATION_KEY);
+      setPendingNotification(null);
+      initialNotificationProcessed.current = false;
       
       // Delete FCM token on logout
       if (notificationService.isFirebaseAvailable()) {
@@ -608,6 +704,11 @@ function AppContentWithNotifications(): React.JSX.Element {
       
       // Reset FCM registration flag
       fcmTokenRegistered.current = false;
+      
+      // Clear pending notification
+      await AsyncStorage.removeItem(PENDING_NOTIFICATION_KEY);
+      setPendingNotification(null);
+      initialNotificationProcessed.current = false;
       
       // Delete FCM token
       if (notificationService.isFirebaseAvailable()) {
@@ -670,7 +771,16 @@ function AppContentWithNotifications(): React.JSX.Element {
       
       console.log('Login - Saved campaign mode:', savedCampaignMode);
       
+      // Check if there's a pending notification from quit state
+      const storedNotification = await AsyncStorage.getItem(PENDING_NOTIFICATION_KEY);
+      
+      if (storedNotification && !initialNotificationProcessed.current) {
+        console.log('Found pending notification after login, will process it');
+        setPendingNotification(JSON.parse(storedNotification));
+      }
+      
       // Navigate to the correct dashboard based on saved mode
+      // The pending notification handling will redirect if needed
       if (savedCampaignMode) {
         console.log('Login - Navigating to Campaign Dashboard');
         setCurrentScreen('CampaignHome');
@@ -845,6 +955,8 @@ function AppContentWithNotifications(): React.JSX.Element {
         return <CampaignAddAccountScreen navigation={navigation} onNotificationPress={handleNotificationPress} notificationCount={unreadCount} />;
       case 'Notifications':
         return <NotificationsScreen navigation={navigation} route={routeParams} />;
+      case 'NotificationDetail':
+        return <NotificationDetailScreen navigation={navigation} route={routeParams} />;
       default:
         return (
           <PlaceholderScreen

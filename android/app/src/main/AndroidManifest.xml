@@ -29,6 +29,11 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
+        <!-- Handle FCM notification click -->
+        <intent-filter>
+            <action android:name="OPEN_NOTIFICATION_DETAILS" />
+            <category android:name="android.intent.category.DEFAULT" />
+        </intent-filter>
       </activity>
 
       <!-- Set custom default icon for notifications -->

@@ -1,6 +1,6 @@
 /**
  * Notifications Screen
- * Display list of all notifications with detail view
+ * Display list of all notifications
  */
 
 import React, {useEffect, useCallback, useState, useRef} from 'react';
@@ -14,10 +14,7 @@ import {
   ActivityIndicator,
   Alert,
   StatusBar,
-  Modal,
-  ScrollView,
   Animated,
-  Dimensions,
 } from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Header from '../components/Header';
@@ -30,11 +27,10 @@ interface NotificationsScreenProps {
     params?: {
       notification_id?: string;
       highlightId?: string;
+      fromPush?: boolean;
     };
   };
 }
-
-const {width: SCREEN_WIDTH} = Dimensions.get('window');
 
 const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation, route}) => {
   const {
@@ -44,75 +40,49 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation, ro
     hasMore,
     refreshNotifications,
     loadMoreNotifications,
-    markAsRead,
     markAllAsRead,
-    acknowledgeNotification,
     deleteNotification,
   } = useNotifications();
 
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
-  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   
   const flatListRef = useRef<FlatList>(null);
   const highlightAnimation = useRef(new Animated.Value(0)).current;
 
+  // Initial load of notifications
   useEffect(() => {
-    // Refresh notifications when screen mounts
-    refreshNotifications();
+    const loadInitialData = async () => {
+      console.log('NotificationsScreen: Loading initial notifications');
+      await refreshNotifications();
+      setInitialLoadDone(true);
+    };
+    loadInitialData();
   }, []);
 
   // Handle notification_id from navigation params (when clicking push notification)
   useEffect(() => {
-    if (route?.params?.notification_id) {
-      const notificationId = route.params.notification_id;
-      console.log('Opening notification from params:', notificationId);
-      
-      // Set highlighted ID for visual feedback
-      setHighlightedId(notificationId);
-      
-      // Start highlight animation
-      Animated.sequence([
-        Animated.timing(highlightAnimation, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: false,
-        }),
-        Animated.delay(2000),
-        Animated.timing(highlightAnimation, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: false,
-        }),
-      ]).start(() => {
-        setHighlightedId(null);
+    const notificationId = route?.params?.notification_id || route?.params?.highlightId;
+    const fromPush = route?.params?.fromPush;
+    
+    if (notificationId && fromPush) {
+      console.log('NotificationsScreen: Received notification_id from push, navigating to detail:', notificationId);
+      // Navigate directly to NotificationDetail screen
+      navigation.navigate('NotificationDetail', {
+        notification_id: notificationId,
+        fromPush: true,
       });
-      
-      // Find and open the notification after data is loaded
-      setTimeout(() => {
-        const notification = notifications.find(
-          n => n.id === notificationId || n.notification_id?.toString() === notificationId
-        );
-        if (notification) {
-          handleNotificationPress(notification);
-          // Scroll to notification
-          const index = notifications.findIndex(
-            n => n.id === notificationId || n.notification_id?.toString() === notificationId
-          );
-          if (index !== -1 && flatListRef.current) {
-            flatListRef.current.scrollToIndex({index, animated: true, viewPosition: 0.5});
-          }
-        }
-      }, 500);
     }
-  }, [route?.params?.notification_id, notifications]);
+  }, [route?.params?.notification_id, route?.params?.highlightId, route?.params?.fromPush, navigation]);
 
-  // Handle highlightId from navigation params
+  // Handle highlightId from navigation params (without fromPush - for highlighting in list)
   useEffect(() => {
-    if (route?.params?.highlightId) {
-      setHighlightedId(route.params.highlightId);
+    if (route?.params?.highlightId && !route?.params?.fromPush && initialLoadDone) {
+      const highlightId = route.params.highlightId;
+      
+      setHighlightedId(highlightId);
       
       // Animate highlight
       Animated.sequence([
@@ -130,8 +100,21 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation, ro
       ]).start(() => {
         setHighlightedId(null);
       });
+      
+      // Scroll to highlighted notification
+      const index = notifications.findIndex(
+        n => n.id === highlightId || 
+             n.notification_id?.toString() === highlightId ||
+             n.recipient_id?.toString() === highlightId
+      );
+      
+      if (index !== -1 && flatListRef.current) {
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({index, animated: true, viewPosition: 0.5});
+        }, 300);
+      }
     }
-  }, [route?.params?.highlightId]);
+  }, [route?.params?.highlightId, initialLoadDone, notifications]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -145,48 +128,15 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation, ro
     }
   }, [isLoading, hasMore, loadMoreNotifications]);
 
-  const handleNotificationPress = useCallback(async (notification: Notification) => {
-    // Mark as read if not already
-    if (!notification.is_read) {
-      await markAsRead(notification.id);
-    }
-
-    // Show detail modal
-    setSelectedNotification(notification);
-    setDetailModalVisible(true);
-  }, [markAsRead]);
-
-  const handleDetailClose = useCallback(() => {
-    setDetailModalVisible(false);
-    setSelectedNotification(null);
-  }, []);
-
-  const handleDetailAction = useCallback((notification: Notification) => {
-    // Close modal first
-    setDetailModalVisible(false);
-    setSelectedNotification(null);
-
-    // Handle navigation based on notification data
-    if (notification.data?.screen && notification.data.screen !== 'Notifications') {
-      navigation.navigate(notification.data.screen, notification.data);
-    } else if (notification.data?.action === 'top_up_wallet') {
-      navigation.navigate('BuySms');
-    }
+  const handleNotificationPress = useCallback((notification: Notification) => {
+    console.log('NotificationsScreen: Opening notification detail:', notification.id);
+    
+    // Navigate to detail screen
+    navigation.navigate('NotificationDetail', {
+      notification_id: notification.id,
+      notification: notification,
+    });
   }, [navigation]);
-
-  const handleAcknowledge = useCallback(async (notification: Notification) => {
-    if (notification.requires_acknowledgement && !notification.is_acknowledged) {
-      await acknowledgeNotification(notification.id);
-      // Update selected notification if in detail view
-      if (selectedNotification?.id === notification.id) {
-        setSelectedNotification({
-          ...notification,
-          is_acknowledged: true,
-          acknowledged_at: new Date().toISOString(),
-        });
-      }
-    }
-  }, [acknowledgeNotification, selectedNotification]);
 
   const handleDelete = useCallback((notification: Notification) => {
     Alert.alert(
@@ -199,16 +149,11 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation, ro
           style: 'destructive',
           onPress: async () => {
             await deleteNotification(notification.id);
-            // Close detail modal if deleting the selected notification
-            if (selectedNotification?.id === notification.id) {
-              setDetailModalVisible(false);
-              setSelectedNotification(null);
-            }
           },
         },
       ]
     );
-  }, [deleteNotification, selectedNotification]);
+  }, [deleteNotification]);
 
   const handleMarkAllAsRead = useCallback(() => {
     if (unreadCount > 0) {
@@ -270,8 +215,10 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation, ro
     ? notifications.filter(n => !n.is_read)
     : notifications;
 
-  const renderNotificationItem = ({item, index}: {item: Notification; index: number}) => {
-    const isHighlighted = highlightedId === item.id || highlightedId === item.notification_id?.toString();
+  const renderNotificationItem = ({item}: {item: Notification}) => {
+    const isHighlighted = highlightedId === item.id || 
+                          highlightedId === item.notification_id?.toString() ||
+                          highlightedId === item.recipient_id?.toString();
     
     const backgroundColor = isHighlighted 
       ? highlightAnimation.interpolate({
@@ -318,15 +265,17 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation, ro
                 </View>
                 
                 {item.requires_acknowledgement && !item.is_acknowledged && (
-                  <TouchableOpacity
-                    style={styles.acknowledgeButton}
-                    onPress={() => handleAcknowledge(item)}
-                  >
-                    <Text style={styles.acknowledgeButtonText}>Acknowledge</Text>
-                  </TouchableOpacity>
+                  <View style={styles.acknowledgeIndicator}>
+                    <Text style={styles.acknowledgeIndicatorText}>!</Text>
+                  </View>
                 )}
               </View>
             </View>
+          </View>
+          
+          {/* Arrow indicator */}
+          <View style={styles.arrowContainer}>
+            <Text style={styles.arrowIcon}>›</Text>
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -352,109 +301,6 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation, ro
       <View style={styles.footerLoader}>
         <ActivityIndicator size="small" color="#ea6118" />
       </View>
-    );
-  };
-
-  // Notification Detail Modal
-  const renderDetailModal = () => {
-    if (!selectedNotification) return null;
-
-    return (
-      <Modal
-        visible={detailModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={handleDetailClose}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderLeft}>
-                <View style={[styles.modalTypeIcon, {backgroundColor: `${getTypeColor(selectedNotification.type)}20`}]}>
-                  <Text style={styles.modalTypeIconText}>{getIconForType(selectedNotification.type)}</Text>
-                </View>
-                <Text style={styles.modalTitle} numberOfLines={2}>{selectedNotification.title}</Text>
-              </View>
-              <TouchableOpacity style={styles.modalCloseButton} onPress={handleDetailClose}>
-                <Text style={styles.modalCloseButtonText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-              <View style={styles.modalMeta}>
-                <View style={[styles.sourceBadge, selectedNotification.source === 'push' ? styles.pushBadge : styles.adminBadge]}>
-                  <Text style={styles.sourceBadgeText}>
-                    {selectedNotification.source === 'push' ? 'Push Notification' : 'Admin Notification'}
-                  </Text>
-                </View>
-                <Text style={styles.modalTime}>{selectedNotification.time_ago}</Text>
-              </View>
-
-              <Text style={styles.modalMessage}>{selectedNotification.message}</Text>
-
-              {selectedNotification.requires_acknowledgement && (
-                <View style={styles.acknowledgementSection}>
-                  {selectedNotification.is_acknowledged ? (
-                    <View style={styles.acknowledgedBadge}>
-                      <Text style={styles.acknowledgedBadgeText}>✓ Acknowledged</Text>
-                      {selectedNotification.acknowledged_at && (
-                        <Text style={styles.acknowledgedTime}>
-                          {new Date(selectedNotification.acknowledged_at).toLocaleString()}
-                        </Text>
-                      )}
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.acknowledgeButtonLarge}
-                      onPress={() => handleAcknowledge(selectedNotification)}
-                    >
-                      <Text style={styles.acknowledgeButtonLargeText}>Acknowledge</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-
-              {selectedNotification.data?.screen && selectedNotification.data.screen !== 'Notifications' && (
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleDetailAction(selectedNotification)}
-                >
-                  <Text style={styles.actionButtonText}>
-                    {selectedNotification.data?.action === 'top_up_wallet' ? 'Top Up Wallet' : 'View Details'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {selectedNotification.data?.action === 'top_up_wallet' && !selectedNotification.data?.screen && (
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => {
-                    handleDetailClose();
-                    navigation.navigate('BuySms');
-                  }}
-                >
-                  <Text style={styles.actionButtonText}>Top Up Wallet</Text>
-                </TouchableOpacity>
-              )}
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.deleteButton}
-                onPress={() => handleDelete(selectedNotification)}
-              >
-                <Text style={styles.deleteButtonText}>🗑️ Delete</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={handleDetailClose}
-              >
-                <Text style={styles.closeButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     );
   };
 
@@ -499,39 +345,45 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({navigation, ro
           )}
         </View>
 
-        <FlatList
-          ref={flatListRef}
-          data={filteredNotifications}
-          renderItem={renderNotificationItem}
-          keyExtractor={item => item.id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={['#ea6118']}
-              tintColor="#ea6118"
-            />
-          }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.3}
-          ListEmptyComponent={renderEmptyState}
-          ListFooterComponent={renderFooter}
-          showsVerticalScrollIndicator={false}
-          onScrollToIndexFailed={(info) => {
-            // Handle scroll to index failure
-            setTimeout(() => {
-              if (flatListRef.current && filteredNotifications.length > 0) {
-                flatListRef.current.scrollToOffset({
-                  offset: info.averageItemLength * info.index,
-                  animated: true,
-                });
-              }
-            }, 100);
-          }}
-        />
-
-        {renderDetailModal()}
+        {/* Show loading indicator during initial load */}
+        {!initialLoadDone && isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#ea6118" />
+            <Text style={styles.loadingText}>Loading notifications...</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={filteredNotifications}
+            renderItem={renderNotificationItem}
+            keyExtractor={item => item.id}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={['#ea6118']}
+                tintColor="#ea6118"
+              />
+            }
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.3}
+            ListEmptyComponent={renderEmptyState}
+            ListFooterComponent={renderFooter}
+            showsVerticalScrollIndicator={false}
+            onScrollToIndexFailed={(info) => {
+              // Handle scroll to index failure
+              setTimeout(() => {
+                if (flatListRef.current && filteredNotifications.length > 0) {
+                  flatListRef.current.scrollToOffset({
+                    offset: info.averageItemLength * info.index,
+                    animated: true,
+                  });
+                }
+              }, 100);
+            }}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -545,6 +397,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6c757d',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -585,6 +447,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingVertical: 8,
+    flexGrow: 1,
   },
   notificationItem: {
     flexDirection: 'row',
@@ -675,16 +538,27 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#495057',
   },
-  acknowledgeButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+  acknowledgeIndicator: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#dc3545',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  acknowledgeButtonText: {
-    fontSize: 11,
-    fontWeight: '600',
+  acknowledgeIndicatorText: {
+    fontSize: 12,
+    fontWeight: '700',
     color: '#ffffff',
+  },
+  arrowContainer: {
+    justifyContent: 'center',
+    paddingLeft: 8,
+  },
+  arrowIcon: {
+    fontSize: 24,
+    color: '#adb5bd',
+    fontWeight: '300',
   },
   emptyContainer: {
     flex: 1,
@@ -712,162 +586,6 @@ const styles = StyleSheet.create({
   footerLoader: {
     paddingVertical: 16,
     alignItems: 'center',
-  },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: -4},
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  modalHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: 10,
-  },
-  modalTypeIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  modalTypeIconText: {
-    fontSize: 24,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#293B50',
-    flex: 1,
-  },
-  modalCloseButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#f8f9fa',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalCloseButtonText: {
-    fontSize: 16,
-    color: '#6c757d',
-    fontWeight: '600',
-  },
-  modalContent: {
-    padding: 20,
-  },
-  modalMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  modalTime: {
-    fontSize: 13,
-    color: '#adb5bd',
-  },
-  modalMessage: {
-    fontSize: 15,
-    color: '#495057',
-    lineHeight: 24,
-    marginBottom: 20,
-  },
-  acknowledgementSection: {
-    marginBottom: 20,
-  },
-  acknowledgedBadge: {
-    backgroundColor: '#d4edda',
-    padding: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  acknowledgedBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#155724',
-  },
-  acknowledgedTime: {
-    fontSize: 12,
-    color: '#155724',
-    marginTop: 4,
-  },
-  acknowledgeButtonLarge: {
-    backgroundColor: '#dc3545',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  acknowledgeButtonLargeText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  actionButton: {
-    backgroundColor: '#ea6118',
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  actionButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    padding: 20,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#e9ecef',
-    gap: 12,
-  },
-  deleteButton: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#f8f9fa',
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#dc3545',
-  },
-  closeButton: {
-    flex: 2,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#293B50',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
   },
 });
 
