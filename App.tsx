@@ -45,6 +45,7 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import NotificationDetailScreen from './src/screens/NotificationDetailScreen';
 import MaintenanceScreen from './src/screens/MaintenanceScreen';
 import SidebarModal from './src/components/SidebarModal';
+import AcknowledgementModal from './src/components/AcknowledgementModal';
 
 // Import Toast Provider
 import {ToastProvider, useToast, setGlobalToast} from './src/context/ToastContext';
@@ -136,7 +137,19 @@ function AppContentWithNotifications(): React.JSX.Element {
   const {showToast, showSuccess} = useToast();
   
   // Get notification context
-  const {unreadCount, refreshUnreadCount, refreshNotifications} = useNotifications();
+  const {
+    unreadCount,
+    refreshUnreadCount,
+    refreshNotifications,
+    pendingAcknowledgements,
+    acknowledgeNotification,
+    removePendingAcknowledgement,
+    fetchPendingAcknowledgements,
+  } = useNotifications();
+  
+  // State for acknowledgement modal
+  const [showAcknowledgementModal, setShowAcknowledgementModal] = useState(false);
+  const [currentAcknowledgement, setCurrentAcknowledgement] = useState<any>(null);
   
   // Store unsubscribe functions for FCM listeners
   const fcmUnsubscribeRef = useRef<(() => void)[]>([]);
@@ -227,12 +240,47 @@ function AppContentWithNotifications(): React.JSX.Element {
         
         // Extract notification data
         const data = pendingNotification.data || {};
+        const notificationPayload = pendingNotification.notification || {};
         const notificationId = data?.notification_id || data?.recipient_id;
         
         console.log('Executing navigation for pending notification, id:', notificationId);
+        console.log('requires_acknowledgment:', data?.requires_acknowledgment);
         
         // Clear from storage first
         await AsyncStorage.removeItem(PENDING_NOTIFICATION_KEY);
+        
+        // Check if this notification requires acknowledgment
+        const requiresAck = data?.requires_acknowledgment === 'true' || data?.requires_acknowledgment === true;
+        
+        if (requiresAck) {
+          console.log('Pending notification requires acknowledgment, showing modal');
+          
+          // Create notification object for the modal
+          const ackNotification = {
+            id: `admin_${notificationId}`,
+            notification_id: parseInt(notificationId, 10),
+            title: data?.title || notificationPayload?.title || 'Notification',
+            message: data?.message || notificationPayload?.body || '',
+            type: data?.type || 'info',
+            time_ago: 'Just now',
+            created_at: data?.timestamp || new Date().toISOString(),
+          };
+          
+          // Clear pending notification state
+          setPendingNotification(null);
+          
+          // Small delay then show modal
+          setTimeout(() => {
+            setCurrentAcknowledgement(ackNotification);
+            setShowAcknowledgementModal(true);
+            
+            // Refresh notifications
+            refreshNotifications();
+            refreshUnreadCount();
+          }, 500);
+          
+          return;
+        }
         
         // Delay to ensure the app is fully ready
         setTimeout(() => {
@@ -276,6 +324,32 @@ function AppContentWithNotifications(): React.JSX.Element {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userData]);
+
+  // Fetch and show pending acknowledgement notifications after login
+  useEffect(() => {
+    if (userData && currentScreen !== 'Login' && currentScreen !== 'Maintenance') {
+      // Fetch pending acknowledgements when user logs in
+      const fetchAcknowledgements = async () => {
+        console.log('Fetching pending acknowledgements after login...');
+        await fetchPendingAcknowledgements();
+      };
+      
+      // Delay to allow screen to settle
+      const timer = setTimeout(fetchAcknowledgements, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [userData, currentScreen, fetchPendingAcknowledgements]);
+
+  // Show acknowledgement modal when there are pending acknowledgements
+  useEffect(() => {
+    if (pendingAcknowledgements.length > 0 && !showAcknowledgementModal && !currentAcknowledgement) {
+      // Get the first pending acknowledgement
+      const nextAcknowledgement = pendingAcknowledgements[0];
+      console.log('Showing acknowledgement modal for:', nextAcknowledgement.title);
+      setCurrentAcknowledgement(nextAcknowledgement);
+      setShowAcknowledgementModal(true);
+    }
+  }, [pendingAcknowledgements, showAcknowledgementModal, currentAcknowledgement]);
 
   // Register FCM token when app is ready and user is logged in
   useEffect(() => {
@@ -454,13 +528,46 @@ function AppContentWithNotifications(): React.JSX.Element {
     const notificationId = data?.notification_id || data?.recipient_id;
     
     console.log('Extracted notificationId:', notificationId);
-    console.log('Navigating to notification...');
+    console.log('requires_acknowledgment:', data?.requires_acknowledgment);
     
     // Mark as processed to prevent duplicate handling
     initialNotificationProcessed.current = true;
     
     // Clear any stored notification
     await AsyncStorage.removeItem(PENDING_NOTIFICATION_KEY);
+    
+    // Check if this notification requires acknowledgment
+    // The value comes as string "true" from push notification data
+    const requiresAck = data?.requires_acknowledgment === 'true' || data?.requires_acknowledgment === true;
+    
+    if (requiresAck) {
+      console.log('Notification requires acknowledgment, showing modal');
+      
+      // Create notification object for the modal
+      const ackNotification = {
+        id: `admin_${notificationId}`,
+        notification_id: parseInt(notificationId, 10),
+        title: data?.title || notificationPayload?.title || 'Notification',
+        message: data?.message || notificationPayload?.body || '',
+        type: data?.type || 'info',
+        time_ago: 'Just now',
+        created_at: data?.timestamp || new Date().toISOString(),
+      };
+      
+      // Show acknowledgement modal
+      setCurrentAcknowledgement(ackNotification);
+      setShowAcknowledgementModal(true);
+      
+      // Refresh notifications
+      setTimeout(() => {
+        refreshNotifications();
+        refreshUnreadCount();
+      }, 500);
+      
+      return;
+    }
+    
+    console.log('Navigating to notification...');
     
     if (data?.screen && data.screen !== 'Notifications') {
       // Navigate to specific screen based on notification data
@@ -1057,6 +1164,35 @@ function AppContentWithNotifications(): React.JSX.Element {
           isLoggingOut={isLoggingOut}
         />
       )}
+      
+      {/* Acknowledgement Modal - shows for notifications requiring acknowledgement */}
+      <AcknowledgementModal
+        visible={showAcknowledgementModal}
+        notification={currentAcknowledgement}
+        onAcknowledge={async (notificationId) => {
+          console.log('Acknowledging notification:', notificationId);
+          
+          // Call the API to acknowledge
+          try {
+            const result = await notificationApiService.acknowledgeNotification(notificationId);
+            console.log('Acknowledge result:', result);
+            
+            if (result.success) {
+              // Also update context if this notification is in the pending list
+              await acknowledgeNotification(notificationId);
+              removePendingAcknowledgement(notificationId);
+            }
+          } catch (error) {
+            console.error('Error acknowledging notification:', error);
+            throw error;
+          }
+        }}
+        onClose={() => {
+          console.log('Closing acknowledgement modal');
+          setShowAcknowledgementModal(false);
+          setCurrentAcknowledgement(null);
+        }}
+      />
     </WalletContext.Provider>
   );
 }

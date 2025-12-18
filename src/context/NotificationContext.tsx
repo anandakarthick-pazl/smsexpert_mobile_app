@@ -16,6 +16,7 @@ interface NotificationContextType {
   isLoading: boolean;
   hasMore: boolean;
   currentPage: number;
+  pendingAcknowledgements: Notification[];
   refreshNotifications: () => Promise<void>;
   loadMoreNotifications: () => Promise<void>;
   markAsRead: (notificationId: string) => Promise<void>;
@@ -25,6 +26,9 @@ interface NotificationContextType {
   refreshUnreadCount: () => Promise<void>;
   getNotification: (notificationId: string) => Promise<Notification | null>;
   findNotificationById: (notificationId: string) => Notification | undefined;
+  addPendingAcknowledgement: (notification: Notification) => void;
+  removePendingAcknowledgement: (notificationId: string) => void;
+  fetchPendingAcknowledgements: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -50,6 +54,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({child
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pendingAcknowledgements, setPendingAcknowledgements] = useState<Notification[]>([]);
   
   // Ref to track if initial fetch has been done
   const initialFetchDone = useRef(false);
@@ -264,6 +269,52 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({child
     );
   }, [notifications]);
 
+  /**
+   * Add notification to pending acknowledgements queue
+   */
+  const addPendingAcknowledgement = useCallback((notification: Notification) => {
+    setPendingAcknowledgements(prev => {
+      // Check if already in queue
+      const exists = prev.some(n => n.id === notification.id);
+      if (exists) return prev;
+      return [...prev, notification];
+    });
+  }, []);
+
+  /**
+   * Remove notification from pending acknowledgements queue
+   */
+  const removePendingAcknowledgement = useCallback((notificationId: string) => {
+    setPendingAcknowledgements(prev => 
+      prev.filter(n => n.id !== notificationId)
+    );
+  }, []);
+
+  /**
+   * Fetch notifications requiring acknowledgement from API
+   */
+  const fetchPendingAcknowledgements = useCallback(async () => {
+    try {
+      console.log('Fetching pending acknowledgement notifications...');
+      const result = await notificationApiService.getNotifications(1, 50, false);
+      
+      if (result.success && result.data) {
+        // Filter notifications that require acknowledgement and haven't been acknowledged
+        const pendingAck = result.data.items.filter(
+          n => n.requires_acknowledgement && !n.is_acknowledged
+        );
+        
+        console.log('Found pending acknowledgements:', pendingAck.length);
+        
+        if (pendingAck.length > 0) {
+          setPendingAcknowledgements(pendingAck);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching pending acknowledgements:', error);
+    }
+  }, []);
+
   // Start polling for unread count when provider mounts
   useEffect(() => {
     // Initial fetch
@@ -293,6 +344,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({child
     isLoading,
     hasMore,
     currentPage,
+    pendingAcknowledgements,
     refreshNotifications,
     loadMoreNotifications,
     markAsRead,
@@ -302,6 +354,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({child
     refreshUnreadCount,
     getNotification,
     findNotificationById,
+    addPendingAcknowledgement,
+    removePendingAcknowledgement,
+    fetchPendingAcknowledgements,
   };
 
   return (
