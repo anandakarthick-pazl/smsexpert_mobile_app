@@ -5,7 +5,7 @@
 
 export const API_CONFIG = {
   // Your computer's IP address
-  BASE_URL: 'http://192.168.1.3:8000/api/mobile/',
+  BASE_URL: 'http://192.168.29.179:8000/api/mobile/',
   TIMEOUT: 30000, // 30 seconds
 };
 
