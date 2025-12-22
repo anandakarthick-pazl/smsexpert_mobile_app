@@ -9,9 +9,9 @@
     "start": "react-native start",
     "test": "jest",
     
-    "start:local": "cross-env ENVFILE=.env.local react-native start",
-    "start:dev": "cross-env ENVFILE=.env.development react-native start",
-    "start:prod": "cross-env ENVFILE=.env.production react-native start",
+    "start:local": "cross-env ENVFILE=.env.local react-native start --reset-cache",
+    "start:dev": "cross-env ENVFILE=.env.development react-native start --reset-cache",
+    "start:prod": "cross-env ENVFILE=.env.production react-native start --reset-cache",
     
     "android:local": "cross-env ENVFILE=.env.local react-native run-android",
     "android:dev": "cross-env ENVFILE=.env.development react-native run-android",
@@ -21,19 +21,15 @@
     "ios:dev": "cross-env ENVFILE=.env.development react-native run-ios",
     "ios:prod": "cross-env ENVFILE=.env.production react-native run-ios",
     
+    "prebuild:apk": "node scripts/set-env.js",
     "build:apk": "cd android && gradlew assembleRelease && cd ..",
-    "build:apk:local": "cross-env ENVFILE=.env.local npm run build:apk",
-    "build:apk:dev": "cross-env ENVFILE=.env.development npm run build:apk",
-    "build:apk:prod": "cross-env ENVFILE=.env.production npm run build:apk",
     
+    "prebuild:aab": "node scripts/set-env.js", 
     "build:aab": "cd android && gradlew bundleRelease && cd ..",
-    "build:aab:local": "cross-env ENVFILE=.env.local npm run build:aab",
-    "build:aab:dev": "cross-env ENVFILE=.env.development npm run build:aab",
-    "build:aab:prod": "cross-env ENVFILE=.env.production npm run build:aab",
     
     "clean": "react-native start --reset-cache",
     "clean:android": "cd android && gradlew clean && cd ..",
-    "clean:all": "npm run clean:android"
+    "clean:all": "npm run clean:android && rmdir /s /q node_modules\\.cache 2>nul"
   },
   "dependencies": {
     "@jsamr/counter-style": "^2.0.2",
