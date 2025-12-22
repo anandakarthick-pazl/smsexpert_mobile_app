@@ -12,6 +12,7 @@ interface ApiResponse<T = any> {
   message: string;
   data?: T;
   errors?: any;
+  isNetworkError?: boolean;
 }
 
 interface RequestOptions {
@@ -21,6 +22,26 @@ interface RequestOptions {
   requiresAuth?: boolean;
   showErrorToast?: boolean; // Whether to show error toast automatically
 }
+
+/**
+ * Check if the device has internet connectivity
+ */
+const checkConnectivity = async (): Promise<boolean> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch('https://clients3.google.com/generate_204', {
+      method: 'HEAD',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+    return response.status === 204 || response.ok;
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Make API request
@@ -85,7 +106,7 @@ export const apiRequest = async <T = any>(
 
     // Handle HTTP errors
     if (!response.ok) {
-      const errorMessage = responseData.message || `HTTP Error: ${response.status}`;
+      const errorMessage = responseData.message || 'Something went wrong. Please try again.';
       
       // Show error toast
       if (showErrorToast) {
@@ -101,7 +122,7 @@ export const apiRequest = async <T = any>(
 
     // Check if API returned status: false
     if (responseData.status === false) {
-      const errorMessage = responseData.message || 'Something went wrong';
+      const errorMessage = responseData.message || 'Something went wrong. Please try again.';
       
       // Show error toast
       if (showErrorToast) {
@@ -115,19 +136,37 @@ export const apiRequest = async <T = any>(
   } catch (error: any) {
     console.error('API Request Error:', error);
 
-    let errorMessage = 'An unexpected error occurred.';
+    let errorMessage = 'Something went wrong. Please try again.';
+    let isNetworkError = false;
 
     // Handle abort error (timeout)
     if (error.name === 'AbortError') {
-      errorMessage = 'Request timeout. Please check your connection.';
+      errorMessage = 'Request timed out. Please check your connection and try again.';
+      isNetworkError = true;
     }
     // Handle network error
-    else if (error.message === 'Network request failed') {
-      errorMessage = 'Network error. Please check your internet connection.';
+    else if (error.message === 'Network request failed' || error.message?.includes('Network')) {
+      // Check if it's actually a connectivity issue
+      const hasInternet = await checkConnectivity();
+      
+      if (!hasInternet) {
+        errorMessage = 'No internet connection. Please check your network and try again.';
+        isNetworkError = true;
+      } else {
+        // Server might be down or unreachable
+        errorMessage = 'Unable to connect to server. Please try again later.';
+        isNetworkError = true;
+      }
+    }
+    // Handle JSON parse error
+    else if (error.name === 'SyntaxError') {
+      errorMessage = 'Something went wrong. Please try again.';
     }
     // Handle other errors
     else if (error.message) {
-      errorMessage = error.message;
+      // Don't expose technical error messages to users
+      console.error('Technical error:', error.message);
+      errorMessage = 'Something went wrong. Please try again.';
     }
 
     // Show error toast
@@ -138,6 +177,7 @@ export const apiRequest = async <T = any>(
     return {
       status: false,
       message: errorMessage,
+      isNetworkError,
     };
   }
 };
@@ -248,7 +288,7 @@ export const uploadFile = async <T = any>(
             if (xhr.status >= 200 && xhr.status < 300) {
               resolve(responseData);
             } else {
-              const errorMessage = responseData.message || `HTTP Error: ${xhr.status}`;
+              const errorMessage = responseData.message || 'Something went wrong. Please try again.';
               if (showErrorToast) {
                 toast.error(errorMessage);
               }
@@ -259,7 +299,7 @@ export const uploadFile = async <T = any>(
               });
             }
           } catch (e) {
-            const errorMessage = 'Failed to parse server response';
+            const errorMessage = 'Something went wrong. Please try again.';
             if (showErrorToast) {
               toast.error(errorMessage);
             }
@@ -271,24 +311,26 @@ export const uploadFile = async <T = any>(
         });
 
         xhr.addEventListener('error', () => {
-          const errorMessage = 'Network error during upload';
+          const errorMessage = 'Network error. Please check your connection and try again.';
           if (showErrorToast) {
             toast.error(errorMessage);
           }
           resolve({
             status: false,
             message: errorMessage,
+            isNetworkError: true,
           });
         });
 
         xhr.addEventListener('timeout', () => {
-          const errorMessage = 'Upload timeout';
+          const errorMessage = 'Upload timed out. Please try again.';
           if (showErrorToast) {
             toast.error(errorMessage);
           }
           resolve({
             status: false,
             message: errorMessage,
+            isNetworkError: true,
           });
         });
 
@@ -315,7 +357,7 @@ export const uploadFile = async <T = any>(
     console.log('API Upload Response:', responseData);
 
     if (!response.ok) {
-      const errorMessage = responseData.message || `HTTP Error: ${response.status}`;
+      const errorMessage = responseData.message || 'Something went wrong. Please try again.';
       if (showErrorToast) {
         toast.error(errorMessage);
       }
@@ -327,7 +369,7 @@ export const uploadFile = async <T = any>(
     }
 
     if (responseData.status === false) {
-      const errorMessage = responseData.message || 'Upload failed';
+      const errorMessage = responseData.message || 'Upload failed. Please try again.';
       if (showErrorToast) {
         toast.error(errorMessage);
       }
@@ -338,11 +380,12 @@ export const uploadFile = async <T = any>(
   } catch (error: any) {
     console.error('API Upload Error:', error);
 
-    let errorMessage = 'Upload failed';
-    if (error.message === 'Network request failed') {
-      errorMessage = 'Network error during upload. Please check your connection.';
-    } else if (error.message) {
-      errorMessage = error.message;
+    let errorMessage = 'Something went wrong. Please try again.';
+    let isNetworkError = false;
+
+    if (error.message === 'Network request failed' || error.message?.includes('Network')) {
+      errorMessage = 'Network error. Please check your connection and try again.';
+      isNetworkError = true;
     }
 
     if (showErrorToast) {
@@ -352,6 +395,7 @@ export const uploadFile = async <T = any>(
     return {
       status: false,
       message: errorMessage,
+      isNetworkError,
     };
   }
 };

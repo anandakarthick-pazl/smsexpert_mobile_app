@@ -1,13 +1,62 @@
 /**
  * API Configuration
  * Base URL and API endpoints
+ * 
+ * Environment-based configuration:
+ * - local: Uses local development server (e.g., http://192.168.29.179:8000)
+ * - development: Uses development server (e.g., https://dev-api.smsexpert.com)
+ * - production: Uses production server (e.g., https://api.smsexpert.com)
+ * 
+ * To change environment, modify the .env file or use:
+ * - .env.local for local development
+ * - .env.development for development
+ * - .env.production for production
  */
 
-export const API_CONFIG = {
-  // Your computer's IP address
-  BASE_URL: 'http://192.168.29.179:8000/api/mobile/',
-  TIMEOUT: 30000, // 30 seconds
+import {APP_ENV, API_BASE_URL, API_TIMEOUT} from '@env';
+
+// Environment type
+export type AppEnvironment = 'local' | 'development' | 'production';
+
+// Current environment
+export const CURRENT_ENV: AppEnvironment = APP_ENV || 'local';
+
+// Environment-specific configurations (fallback if env vars not loaded)
+const ENV_CONFIGS: Record<AppEnvironment, {baseUrl: string; timeout: number}> = {
+  local: {
+    baseUrl: 'http://192.168.29.179:8000/api/mobile/',
+    timeout: 30000,
+  },
+  development: {
+    baseUrl: 'https://dev-api.smsexpert.com/api/mobile/',
+    timeout: 30000,
+  },
+  production: {
+    baseUrl: 'https://api.smsexpert.com/api/mobile/',
+    timeout: 30000,
+  },
 };
+
+// Get configuration based on environment
+const getConfig = () => {
+  const envConfig = ENV_CONFIGS[CURRENT_ENV] || ENV_CONFIGS.local;
+  
+  return {
+    BASE_URL: API_BASE_URL || envConfig.baseUrl,
+    TIMEOUT: API_TIMEOUT ? parseInt(API_TIMEOUT, 10) : envConfig.timeout,
+  };
+};
+
+export const API_CONFIG = getConfig();
+
+// Log current environment (only in non-production)
+if (CURRENT_ENV !== 'production') {
+  console.log('=================================');
+  console.log(`🌍 Environment: ${CURRENT_ENV.toUpperCase()}`);
+  console.log(`🔗 API Base URL: ${API_CONFIG.BASE_URL}`);
+  console.log(`⏱️ Timeout: ${API_CONFIG.TIMEOUT}ms`);
+  console.log('=================================');
+}
 
 export const API_ENDPOINTS = {
   // Auth
@@ -75,5 +124,14 @@ export const API_ENDPOINTS = {
   CAMPAIGN_ADD_ACCOUNT: 'campaign/accounts/add',
   CAMPAIGN_TRANSFER: 'campaign/transfer',
 };
+
+// Helper function to check if running in production
+export const isProduction = (): boolean => CURRENT_ENV === 'production';
+
+// Helper function to check if running in development
+export const isDevelopment = (): boolean => CURRENT_ENV === 'development';
+
+// Helper function to check if running locally
+export const isLocal = (): boolean => CURRENT_ENV === 'local';
 
 export default API_CONFIG;

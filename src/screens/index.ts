@@ -33,3 +33,4 @@ export {default as CampaignAddAccountScreen} from './CampaignAddAccountScreen';
 export {default as PlaceholderScreen} from './PlaceholderScreen';
 export {default as NotificationsScreen} from './NotificationsScreen';
 export {default as MaintenanceScreen} from './MaintenanceScreen';
+export {default as NoInternetScreen} from './NoInternetScreen';

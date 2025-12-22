@@ -3,7 +3,7 @@
  */
 
 import React, {useState, useEffect, useCallback, useRef} from 'react';
-import {StatusBar, View, ActivityIndicator, StyleSheet, Text, InteractionManager, AppState} from 'react-native';
+import {StatusBar, View, ActivityIndicator, StyleSheet, Text, InteractionManager, AppState, AppStateStatus} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -44,6 +44,7 @@ import PlaceholderScreen from './src/screens/PlaceholderScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import NotificationDetailScreen from './src/screens/NotificationDetailScreen';
 import MaintenanceScreen from './src/screens/MaintenanceScreen';
+import NoInternetScreen from './src/screens/NoInternetScreen';
 import SidebarModal from './src/components/SidebarModal';
 import AcknowledgementModal from './src/components/AcknowledgementModal';
 
@@ -52,6 +53,9 @@ import {ToastProvider, useToast, setGlobalToast} from './src/context/ToastContex
 
 // Import Notification Provider
 import {NotificationProvider, useNotifications} from './src/context/NotificationContext';
+
+// Import Network Provider
+import {NetworkProvider, useNetwork} from './src/context/NetworkContext';
 
 // Import services
 import * as authService from './src/services/authService';
@@ -113,7 +117,7 @@ export const WalletContext = React.createContext<{
   refreshWallet: async () => {},
 });
 
-// Main App Content Component (with notification context access)
+// Main App Content Component (with notification and network context access)
 function AppContentWithNotifications(): React.JSX.Element {
   const [currentScreen, setCurrentScreen] = useState<ScreenName>('Login');
   const [routeParams, setRouteParams] = useState<{params?: any}>({params: {}});
@@ -130,11 +134,16 @@ function AppContentWithNotifications(): React.JSX.Element {
   }>({enabled: false, message: '', endTime: null});
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
+  // Network state
+  const {isConnected, checkConnection} = useNetwork();
+  const [showNoInternet, setShowNoInternet] = useState(false);
+  const previouslyConnected = useRef(true);
+  
   // Store pending notification to handle after auth
   const [pendingNotification, setPendingNotification] = useState<any>(null);
   
   // Get toast functions
-  const {showToast, showSuccess} = useToast();
+  const {showToast, showSuccess, showWarning} = useToast();
   
   // Get notification context
   const {
@@ -170,6 +179,39 @@ function AppContentWithNotifications(): React.JSX.Element {
     setGlobalToast(showToast);
   }, [showToast]);
 
+  // Monitor network connectivity changes
+  useEffect(() => {
+    console.log('Network connectivity changed:', isConnected);
+    
+    if (!isConnected && previouslyConnected.current) {
+      // Just lost connection - show No Internet screen
+      console.log('Lost internet connection, showing No Internet screen');
+      setShowNoInternet(true);
+    } else if (isConnected && !previouslyConnected.current) {
+      // Connection restored
+      console.log('Internet connection restored');
+      setShowNoInternet(false);
+      showSuccess('Connection restored');
+    }
+    
+    previouslyConnected.current = isConnected;
+  }, [isConnected, showSuccess]);
+
+  // Handle retry from No Internet screen
+  const handleNetworkRetry = async (): Promise<boolean> => {
+    console.log('Retrying network connection...');
+    const connected = await checkConnection();
+    
+    if (connected) {
+      setShowNoInternet(false);
+      showSuccess('Connection restored');
+      return true;
+    } else {
+      showWarning('Still no internet connection');
+      return false;
+    }
+  };
+
   // Mark app as ready after initial render (Activity will be attached)
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
@@ -200,7 +242,7 @@ function AppContentWithNotifications(): React.JSX.Element {
 
   // Check for pending notifications when app comes to foreground
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+    const subscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active' && userData && !initialNotificationProcessed.current) {
         console.log('App came to foreground, checking for pending notifications...');
         const storedNotification = await AsyncStorage.getItem(PENDING_NOTIFICATION_KEY);
@@ -1045,6 +1087,11 @@ function AppContentWithNotifications(): React.JSX.Element {
     );
   }
 
+  // Show No Internet screen if no connectivity
+  if (showNoInternet) {
+    return <NoInternetScreen onRetry={handleNetworkRetry} />;
+  }
+
   // Show maintenance screen if in maintenance mode
   if (currentScreen === 'Maintenance' || maintenanceMode.enabled) {
     return (
@@ -1206,12 +1253,21 @@ function AppContent(): React.JSX.Element {
   );
 }
 
+// Wrapper with Network Provider
+function AppWithNetwork(): React.JSX.Element {
+  return (
+    <NetworkProvider>
+      <AppContent />
+    </NetworkProvider>
+  );
+}
+
 // Main App Component with ToastProvider
 function App(): React.JSX.Element {
   return (
     <SafeAreaProvider>
       <ToastProvider>
-        <AppContent />
+        <AppWithNetwork />
       </ToastProvider>
     </SafeAreaProvider>
   );

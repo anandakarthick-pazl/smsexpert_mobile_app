@@ -6,3 +6,4 @@
 export * from './ToastContext';
 export * from './WalletContext';
 export * from './NotificationContext';
+export * from './NetworkContext';

@@ -7,7 +7,33 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    
+    "start:local": "cross-env ENVFILE=.env.local react-native start",
+    "start:dev": "cross-env ENVFILE=.env.development react-native start",
+    "start:prod": "cross-env ENVFILE=.env.production react-native start",
+    
+    "android:local": "cross-env ENVFILE=.env.local react-native run-android",
+    "android:dev": "cross-env ENVFILE=.env.development react-native run-android",
+    "android:prod": "cross-env ENVFILE=.env.production react-native run-android",
+    
+    "ios:local": "cross-env ENVFILE=.env.local react-native run-ios",
+    "ios:dev": "cross-env ENVFILE=.env.development react-native run-ios",
+    "ios:prod": "cross-env ENVFILE=.env.production react-native run-ios",
+    
+    "build:apk": "cd android && gradlew assembleRelease && cd ..",
+    "build:apk:local": "cross-env ENVFILE=.env.local npm run build:apk",
+    "build:apk:dev": "cross-env ENVFILE=.env.development npm run build:apk",
+    "build:apk:prod": "cross-env ENVFILE=.env.production npm run build:apk",
+    
+    "build:aab": "cd android && gradlew bundleRelease && cd ..",
+    "build:aab:local": "cross-env ENVFILE=.env.local npm run build:aab",
+    "build:aab:dev": "cross-env ENVFILE=.env.development npm run build:aab",
+    "build:aab:prod": "cross-env ENVFILE=.env.production npm run build:aab",
+    
+    "clean": "react-native start --reset-cache",
+    "clean:android": "cd android && gradlew clean && cd ..",
+    "clean:all": "npm run clean:android"
   },
   "dependencies": {
     "@jsamr/counter-style": "^2.0.2",
@@ -22,6 +48,7 @@
     "react-native": "0.82.1",
     "react-native-device-info": "^14.1.1",
     "react-native-document-picker": "^9.3.1",
+    "react-native-dotenv": "^3.4.11",
     "react-native-render-html": "^6.3.4",
     "react-native-safe-area-context": "^5.5.2",
     "react-native-signature-canvas": "^5.0.1",
@@ -42,6 +69,7 @@
     "@types/jest": "^29.5.13",
     "@types/react": "^19.1.1",
     "@types/react-test-renderer": "^19.1.0",
+    "cross-env": "^7.0.3",
     "eslint": "^8.19.0",
     "jest": "^29.6.3",
     "patch-package": "^8.0.1",
