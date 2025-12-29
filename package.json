@@ -20,6 +20,7 @@
     "ios:local": "cross-env ENVFILE=.env.local react-native run-ios",
     "ios:dev": "cross-env ENVFILE=.env.development react-native run-ios",
     "ios:prod": "cross-env ENVFILE=.env.production react-native run-ios",
+    "build:apk:prod": "cross-env ENVFILE=.env.production npm run build:apk",
     
     "prebuild:apk": "node scripts/set-env.js",
     "build:apk": "cd android && gradlew assembleRelease && cd ..",

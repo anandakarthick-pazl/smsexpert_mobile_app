@@ -24,15 +24,15 @@ export const CURRENT_ENV: AppEnvironment = APP_ENV || 'local';
 // Environment-specific configurations (fallback if env vars not loaded)
 const ENV_CONFIGS: Record<AppEnvironment, {baseUrl: string; timeout: number}> = {
   local: {
-    baseUrl: 'http://192.168.29.179:8000/api/mobile/',
+    baseUrl: 'https://smsexpert.nedtechnology.co.in/capi/mobile/',
     timeout: 30000,
   },
   development: {
-    baseUrl: 'https://dev-api.smsexpert.com/api/mobile/',
+    baseUrl: 'https://smsexpert.nedtechnology.co.in/api/mobile/',
     timeout: 30000,
   },
   production: {
-    baseUrl: 'https://api.smsexpert.com/api/mobile/',
+    baseUrl: 'https://smsexpert.nedtechnology.co.in/api/mobile/',
     timeout: 30000,
   },
 };
